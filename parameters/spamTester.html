@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Param spam tester</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+    }
+    body {
+      padding: 6px;
+      font: 11px system-ui, sans-serif;
+      background: #1a1a2e;
+      color: #eee;
+      display: flex;
+      flex-direction: column;
+    }
+    h1 { font-size: 12px; margin: 0 0 6px; font-weight: 600; }
+    .hint { font-size: 10px; color: #9ab; margin-bottom: 8px; line-height: 1.35; }
+    .grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      align-content: flex-start;
+    }
+    .tog {
+      border: 1px solid #556;
+      background: #2a2a44;
+      color: #ddd;
+      padding: 3px 6px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 10px;
+      max-width: 96px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .tog.on {
+      background: #c44;
+      border-color: #f88;
+      color: #fff;
+      font-weight: 700;
+    }
+    .tog.type-button { border-style: dashed; }
+    .status { font-size: 10px; color: #8cf; margin-top: 6px; }
+  </style>
+</head>
+<body>
+  <h1>Param spam tester</h1>
+  <p class="hint">Toggle params ON, then values spam to art at 30&nbsp;fps (random in range). PARAM-BUTTON fires once per click.</p>
+  <div class="grid" id="grid"></div>
+  <p class="status" id="status"></p>
+  <script>
+    if (typeof ParamMessenger !== "function") {
+      document.body.innerHTML =
+        "<p>Open from Construct² dev-ui (ParamMessenger not injected).</p>";
+      throw new Error("ParamMessenger missing");
+    }
+
+    const FPS = 30;
+    const grid = document.getElementById("grid");
+    const statusEl = document.getElementById("status");
+    const active = new Set();
+    let schemaByName = new Map();
+    let spamTimer = null;
+    let frames = 0;
+
+    const m = new ParamMessenger({
+      onMessage() {
+        /* host is source of truth while spamming */
+      },
+      onReady() {
+        buildUi();
+      },
+    });
+
+    function randomFor(spec) {
+      switch (spec.type) {
+        case "PARAM-FLOAT": {
+          const lo = Number(spec.low);
+          const hi = Number(spec.high);
+          return lo + Math.random() * (hi - lo);
+        }
+        case "PARAM-INT": {
+          const lo = Number(spec.low);
+          const hi = Number(spec.high);
+          const step = Math.max(1, Number(spec.step) || 1);
+          const steps = Math.floor((hi - lo) / step);
+          return lo + Math.round(Math.random() * steps) * step;
+        }
+        case "PARAM-BOOLEAN":
+          return Math.random() < 0.5 ? 0 : 1;
+        case "PARAM-CHOICE":
+        case "PARAM-DROPDOWN": {
+          const choices = (spec.choices || []).filter((c) => typeof c === "string");
+          if (!choices.length) return spec.default;
+          return choices[Math.floor(Math.random() * choices.length)];
+        }
+        case "PARAM-NUMBER":
+          return (Number(spec.default) || 0) + (Math.random() - 0.5) * 20;
+        case "PARAM-STRING":
+          return "x" + Math.floor(Math.random() * 10000);
+        default:
+          return null;
+      }
+    }
+
+    function spamTick() {
+      if (!active.size) return;
+      const patch = {};
+      for (const name of active) {
+        const spec = schemaByName.get(name);
+        if (!spec) continue;
+        const v = randomFor(spec);
+        if (v !== null && v !== undefined) patch[name] = v;
+      }
+      if (Object.keys(patch).length) {
+        m.send(patch);
+        frames++;
+        statusEl.textContent = "Spamming " + active.size + " @ " + FPS + "fps (frame " + frames + ")";
+      }
+    }
+
+    function syncSpamLoop() {
+      clearInterval(spamTimer);
+      spamTimer = null;
+      if (active.size) {
+        spamTimer = setInterval(spamTick, 1000 / FPS);
+      } else {
+        statusEl.textContent = "No active toggles";
+      }
+    }
+
+    function buildUi() {
+      grid.innerHTML = "";
+      schemaByName = new Map();
+      const schema = m.getSchema();
+      for (const spec of schema) {
+        schemaByName.set(spec.name, spec);
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "tog" + (spec.type === "PARAM-BUTTON" ? " type-button" : "");
+        btn.textContent = spec.name;
+        btn.title = (spec.description || spec.type) + "";
+        if (spec.type === "PARAM-BUTTON") {
+          btn.addEventListener("click", () => m.sendButton(spec.name));
+        } else {
+          btn.addEventListener("click", () => {
+            if (active.has(spec.name)) {
+              active.delete(spec.name);
+              btn.classList.remove("on");
+            } else {
+              active.add(spec.name);
+              btn.classList.add("on");
+            }
+            syncSpamLoop();
+          });
+        }
+        grid.appendChild(btn);
+      }
+      statusEl.textContent = schema.length ? schema.length + " params" : "No schema";
+    }
+
+  </script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "templates": [
+    {
+      "id": "cc-v3-minimal",
+      "label": "Canvas Core v3 — minimal",
+      "runtime": "cc-v3.23",
+      "description": "Blank 1000×1000 piece with metadata builder stub"
+    },
+    {
+      "id": "cc-v3-ascii",
+      "label": "Canvas Core v3 + AsciiCore",
+      "runtime": "cc-v3.23",
+      "description": "Minimal piece with AsciiCore import stub"
+    },
+    {
+      "id": "cc-v3-collection",
+      "label": "Canvas Core v3 + collection scripts",
+      "runtime": "cc-v3.23",
+      "description": "Minimal piece with collection.js shuffle example"
+    },
+    {
+      "id": "cc-v3.22-minimal",
+      "label": "Canvas Core v3.22 — minimal",
+      "runtime": "cc-v3.22",
+      "description": "Blank piece using CC 3.22 runtime (legacy import parity)"
+    }
+  ]
+}

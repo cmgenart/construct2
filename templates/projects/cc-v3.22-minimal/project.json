@@ -1,0 +1,4 @@
+{
+  "runtime": "cc-v3.22",
+  "files": ["setup.js", "draw.js", "functions.js", "defs.js", "metadata.js"]
+}

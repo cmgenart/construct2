@@ -1,0 +1,1527 @@
+<!doctype html>
+<html>
+    <body>
+        <style>
+            html,
+            body {
+                height: 100%;
+                overflow: hidden;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+            canvas {
+                position: absolute;
+                object-fit: contain;
+                background-size: contain;
+                box-sizing: border-box;
+            }
+        </style>
+        <canvas id="tc"></canvas>
+        <canvas></canvas>
+        <script>
+            //PROCESS<minify>
+                
+            const cc_version = "3.22";
+            // ----------------------------------------------------
+            // --                                Canvas Core 3.x --
+            // --                      Written by Charles Machin --
+            // --     MIT License — Copyright 2026 Charles Machin / cmgenart --
+            // ----------------------------------------------------
+
+            // Assorted Space saving constants (minifiable)
+            const GLOBAL = globalThis;
+            const WINDOW = window;
+            const DOCUMENT = document;
+            const OBJECT = Object;
+            const ARRAY = Array;
+
+            // assorted functions
+            const CHAR = (e) => String.fromCharCode(e); // Character code to character
+            const IsFunc = (v) => typeof v === "function"; // returns true if var is a function
+            const IsArray = ARRAY.isArray; // returns true when object is an array
+            const OAS = OBJECT.assign; // insert array item into another array
+
+            // Compact loop functions
+            const For = (v, a, b) => {
+                for (v = v; v < a; v++) b(v, v / (a - 1), v / a);
+            }; // compact for loop
+            //const FoE = (v, a, b) => For(0, v.length, (i, t) => a(v[i], i, t)); // compact for each loop
+            const FoE = (v, a, b) => For(0, v.length, (i,t,p) => a(v[i],i,t,p)); // foreach with extra loop ags
+            //const FoP = (a, f) => FoE(OBJECT.entries(a), (e, n, t) => f(...e, n, t)); // compact pairs loop
+            const FoP = (a, f) => FoE(OBJECT.entries(a), (e,t,p) => f(...e,t,p)); // pairs with extra loop args
+            const Loop = (n, f) => For(0, n, f); // compact Loop
+
+            // plan to retire these
+            const cR = (v, a, b, c) => `rgba(${v},${a},${b},${c})`;
+            const cH = (v, a, b, c) => `hsla(${v},${a}% ,${b}% ,${c})`;
+            const cM = (v, a) => cR(v, v, v, a);
+            const cHx = (e) =>
+                cR(
+                    ((e = parseInt(e, 16)) >> 16) & 255,
+                    (e >> 8) & 255,
+                    255 & e,
+                    1,
+                );
+
+            // the new colour functions
+            const cHSVA = (h, s, v, a) => cRGBA(...HSV_to_RGB(h, s, v), a);
+            const cRGBA = (...a) => `rgba(${a.join(",")})`;
+            const cHSLA = (h, s, l, a) => `hsla(${h},${s}% ,${l}% ,${a})`;
+            const cMono = (v, a = 1) => cRGBA(v, v, v, a);
+            const cHex = (h, a = 1) => cRGBA(...HEX_to_RGB(h), a);
+
+            // Colour convert functions
+            const HEX_to_RGB = (e) => [
+                ((e = parseInt(e, 16)) >> 16) & 255,
+                (e >> 8) & 255,
+                255 & e,
+            ];
+            const RGB_to_HEX = (r, g, b) =>
+                CHAR(35) +
+                [r, g, b]
+                    .map((x) => round(x).toString(16).padStart(2, "0"))
+                    .join("");
+            const RGB_to_HSV = (r, g, b) => {
+                r /= 255;
+                g /= 255;
+                b /= 255;
+                const [high, low] = [max(r, g, b), min(r, g, b)];
+                const delta = high - low;
+                let h =
+                    delta === 0
+                        ? 0
+                        : high === r
+                          ? 60 * (((g - b) / delta) % 6)
+                          : high === g
+                            ? 60 * ((b - r) / delta + 2)
+                            : 60 * ((r - g) / delta + 4);
+                h = isNaN(h) ? 0 : h < 0 ? h + 360 : h;
+                return [h, high === 0 ? 0 : (delta / high) * 100, high * 100];
+            };
+            const HSV_to_RGB = (h, s, v) => {
+                s /= 100;
+                v = (v / 100) * 255; // Scale v to [0,255]
+                if (s === 0) return [v, v, v]; // Handle grayscale values
+                const c = (v / 255) * s * 255;
+                const x = c * (1 - abs(((h / 60) % 2) - 1));
+                const m = v - c;
+
+                let rgb =
+                    h < 60
+                        ? [c, x, 0]
+                        : h < 120
+                          ? [x, c, 0]
+                          : h < 180
+                            ? [0, c, x]
+                            : h < 240
+                              ? [0, x, c]
+                              : h < 300
+                                ? [x, 0, c]
+                                : [c, 0, x];
+                return rgb.map((value) => round(value + m));
+            };
+
+            /*   // HSV->RGB->HSV CONVERT TESTS //
+
+const compareColors = (c1, c2, epsilon = 2) =>
+    c1.length === c2.length && c1.every((val, i) => Math.abs(val - c2[i]) < epsilon);
+
+let report = "HSV-RGB Conversion Test Report:\n";
+
+// Test cases
+const testCases = [
+    { rgb: [255, 0, 0], hsv: [0, 100, 100], desc: "Pure Red" },
+    { rgb: [0, 255, 0], hsv: [120, 100, 100], desc: "Pure Green" },
+    { rgb: [0, 0, 255], hsv: [240, 100, 100], desc: "Pure Blue" },
+    { rgb: [255, 255, 255], hsv: [0, 0, 100], desc: "White" },
+    { rgb: [0, 0, 0], hsv: [0, 0, 0], desc: "Black" },
+    { rgb: [128, 128, 128], hsv: [0, 0, 50], desc: "Gray" },
+    { rgb: [255, 255, 0], hsv: [60, 100, 100], desc: "Yellow" },
+    { rgb: [0, 255, 255], hsv: [180, 100, 100], desc: "Cyan" },
+    { rgb: [255, 0, 255], hsv: [300, 100, 100], desc: "Magenta" },
+    { rgb: [192, 192, 192], hsv: [0, 0, 75], desc: "Light Gray" }
+];
+
+// Validate RGB_to_HSV
+for (const { rgb, hsv, desc } of testCases) {
+    const resultHSV = RGB_to_HSV(...rgb);
+    report += `RGB_to_HSV: ${desc} | Expected: ${JSON.stringify(hsv)} | Result: ${JSON.stringify(resultHSV)} | Match: ${compareColors(resultHSV, hsv)}\n`;
+}
+
+// Validate HSV_to_RGB
+for (const { rgb, hsv, desc } of testCases) {
+    const resultRGB = HSV_to_RGB(...hsv).map(Math.round);
+    report += `HSV_to_RGB: ${desc} | Expected: ${JSON.stringify(rgb)} | Result: ${JSON.stringify(resultRGB)} | Match: ${compareColors(resultRGB, rgb)}\n`;
+}
+
+// Round-trip validation
+for (const { rgb, desc } of testCases) {
+    const resultHSV = RGB_to_HSV(...rgb);
+    const resultRGB = HSV_to_RGB(...resultHSV).map(Math.round);
+    report += `Round-trip: ${desc} | Original: ${JSON.stringify(rgb)} | Final: ${JSON.stringify(resultRGB)} | Match: ${compareColors(resultRGB, rgb)}\n`;
+}
+
+console.log(report);
+//*/
+
+            // Setup the global abbreviations!
+            FoE(
+                [
+                    `LClineCap:SbshadowBlur:LWlineWidth:TAtextAlign:TBtextBaseline:SCshadowColor:SSstrokeStyle:FSfillStyle`.split(
+                        ":",
+                    ),
+                    `LPclip:RTrect:GTgetTransform:DIdrawImage:FTfillText:ELellipse:BPbeginPath:CPclosePath:MTmoveTo:LTlineTo:STstroke:VSsave:VRrestore:TRsetTransform:XTtranslate:XSscale:XRrotate:FRfillRect:RErect:FLfill`.split(
+                        ":",
+                    ),
+                    //BCbezierCurveTo: :GCglobalCompositeOperation
+                ],
+                (l, n) =>
+                    FoE(l, (t) => {
+                        let [, r, k] = t.match(/(..)(.+)/); // extract 2 char <code> and <function name>
+                        GLOBAL["C" + r] = n // JS 'globalThis' obj
+                            ? (...a) => ctx[k](...a) // function abbreviations
+                            : (a) => (ctx[k] = a); // assignment abbreviations
+                    }),
+            );
+
+            // Bind Math.* to the global scope
+            FoE(OBJECT.getOwnPropertyNames(Math), (n) => (GLOBAL[n] = Math[n]));
+
+            // vector / extra maths
+            const TAU = PI * 2; // TAU circle (360 deg equiv)
+            const Lerp = (v, a, b) => (1 - v) * a + v * b; // Lerp between two values
+            const Clamp = (v, a = 0, b = 1) => (v < a ? a : min(b, v)); // limit v between a,b
+            const Ease = (v) => -(cos(PI * v) - 1) / 2; // Sin ease curve
+            const Wrap = (v, a, b) =>
+                v < a ? b - ((a - v) % (b - a)) : a + ((v - a) % (b - a)); // wrap value around hi and low
+            const Mapf = (v, a, b, c, d) =>
+                b - a == 0 ? c : c + ((v - a) / (b - a)) * (d - c); // map a value to a second range
+            const Quant = (v, n, l, h) =>
+                l + (round(((v - l) / (h - l)) * n) * (h - l)) / n; // quantise number
+            const Lerpv = (v, a, b, res = V2()) =>
+                res.set(b.x, b.y).sub(a).mul(v).add(a); // lerp between two vectors
+            const QPath =
+                (pnts, v = V2(), i, t) =>
+                (v) =>
+                    Lerpv(
+                        (t = Clamp(v, 0, 0.9999) * (pnts.length - 1)) -
+                            (i = floor(t)),
+                        pnts[i + 1],
+                        pnts[i],
+                        v,
+                    );
+
+            // slerp needs testing
+            const Slerp = (v, a, b, range = 360) => Wrap(a + (((b - a + range / 2) % range) - range / 2) * v, 0, range );
+            const FlipFlop = (n) => (n % 2 ? 1 : -1) * ceil(n / 2);
+
+            // array maths operations (for colour use)
+            const ArrOp = (a, b, fn) => a.slice(0, min(a.length, b.length)).map(fn);
+            const ArrMul = (a, b) => ArrOp(a, b, (v, i) => v * (IsArray(b) ? b[i] : b));
+            //const ArrLerp = (t, a, b, sl = []) => ArrOp(a, b, (v, i) => (sl[i] ? Slerp : Lerp)(t, v, IsArray(b) ? b[i] : b), );
+            const ArrLerp = (t, a, b) =>
+                ArrOp(a, b, (v, i) => Lerp(t, v, IsArray(b) ? b[i] : b));
+
+            const ArrLerpSl = (t, a, b, sl = []) =>
+                ArrOp(a, b, (v, i) => (sl[i] ? Slerp : Lerp)(t, v, IsArray(b) ? b[i] : b));
+
+            const ArrAdd = (a, b) => ArrOp(a, b, (v, i) => v + (IsArray(b) ? b[i] : b));
+            const ArrRound = (a, m = 1) => a.map((v) => round(v * m));
+
+            // Basic Envelope Functions
+            const Ev_Linear = (v) => v; // Linear mapping
+            const Ev_Quad = (v) => v * v; // Quadratic curve
+            const Ev_Cubic = (v) => v * v * v; // Cubic curve
+            const Ev_Sine = (v) => sin(v * PI * 0.5); // Ease-in sine curve
+            const Ev_Exp = (v, e = 3) => v ** 3; // Exponential curve
+            const Ev_Inv = (v) => 1 - v; // Invert the value
+            const Ev_Clamp = (v) => Clamp(v); // Clamp between 0 and 1
+            const Ev_Ping = (v) => 1 - abs(-1 + v * 2); // Ping-pong behavior
+            const Ev_Wrap = (v) => Wrap(v, 0, 1); // Wrap
+            const Ev_Bounce = (v) => abs(sin(v * PI * 2)); // Bounce effect
+            const Ev_Step = (v, n = 10) => Quant(v, n, 0, 1); // Quantise steps
+            const Ev_Mul = (v, n = 10) => v * n;
+
+            // other extension abbreviations
+            const CSB = (e) => CSb(e * cc_Resolution); // shadow blur (modified by resolution)
+            //:GCglobalCompositeOperation
+            const CGA = (a) => (ctx.globalAlpha = a);
+            const CGC = (e) => (ctx.globalCompositeOperation = e);
+            const CCX = (e) => (ctx = e || CONTEXT[0][1]); // CTX                              // set the context
+            const FNT = (e) => (ctx.font = e + "px Arial"); // set font scale
+            const CWH = (e, w, h) => { ((e[WIDTH] = w), (e[HEIGHT] = h || w)); }; // set width and height on canvas
+            const DCE = (e) => DOCUMENT.createElement(e); // create a html document element
+            const DGE = (e) => DOCUMENT.getElementById(e); // get html element by id name
+            const Log = console.log;
+            const CGX = (c, i) => c.getContext(i); // get context on canvas element
+            const CEV = (name, ev, c = cnv, o) => c.addEventListener(name, ev, o); // adds an event listener to canvas
+            const CTC = (a) => CLP(a); // (Depreciated) clip function (CLP is the name)
+            const Transform = (x, y, { a, b, c, d, e, f } = CGT()) => [ a * x + c * y + e, b * x + d * y + f, ]; // converts to canvas space
+            const Timer = (time) => (now, res) => (
+                (res = (now = Date.now()) - (time ?? now)),
+                (time = now),
+                res
+            ); // simple timer builder fn
+
+            // quick filter modes
+            const ADD = (e) => CGC("screen"); // set mode to additive (ie: screen)
+            const MUL = (e) => CGC("source-over"); // set mode to multiplicitive (ie: source-over)
+
+            const Extents = (a = 0) => [a, a, PX - a * 2, PY - a * 2]; // Canvas extents with a being border
+
+            // quick draw abbreviations
+            const RECT = (e, x = 0, y = 0, w = PX, h = PY) => {
+                (CFS(e), CFR(x, y, w, h));
+            }; // draw a rectangle
+            const TXT = (e, t, ...r) => {
+                (CFS(e), FNT(t), CFT(...r));
+            }; // draw text to the screen
+            const ELI = (e, ...t) => {
+                (CFS(e), CBP(), CEL(...t), CFL());
+            }; // draw an ellipse
+            const Circle = (col, x, y, r) => ELI(col, x, y, r, r, 0, 0, TAU); // simple circle function
+            const CentreText = (a) => (CTA(CENTER), CTB(MIDDLE)); // center align text
+            const CircleExt = (c, x, y, r, lw, lc) => (
+                Circle(c, x, y, r),
+                lw && (cc_CLW(lw), lc && cc_CSS(lc), cc_CST())
+            );
+            const Pill = (col, x, y, w, h) => (
+                CLC(ROUND),
+                cc_CBP(),
+                cc_CLW(h),
+                cc_CSS(col),
+                CMT(x - w, y),
+                CLT(x + w, y),
+                cc_CST()
+            );
+            const Shadow = (c, b = 0) => {
+                CSB(b);
+                CSC(c);
+            }; // set the shaddow colour & blur (null arg = off)
+
+            const cc_CBP = CBP;
+            const cc_CSS = CSS;
+            const cc_CFS = CFS;
+            const cc_CST = CST;
+            const cc_CLW = CLW;
+
+            // space saving colour constants
+            const WHITE = "white";
+            const BLACK = "black";
+            const GREEN = "green";
+            const GREY = "grey";
+            const CENTER = "center";
+            const ROUND = "round";
+            const MIDDLE = "middle";
+            const LIGHTGREY = "lightgrey";
+            const WIDTH = "width";
+            const HEIGHT = "height";
+            const LENGTH = "length";
+
+
+            // // shapes and decode                    
+            // var DrawStrip = (line,col="black",mul=1)=>{
+            //     // p.s = 0-62 size
+                
+            //     // how is this going to work? 
+            //     // create a left and right vector on each point
+            //     // collect 2 arrays of left and right points
+            //     let norm = V2()
+            //     let revPoints = []
+            //     CBP()
+            //     FoE(line,(p1,n)=>{
+            //         let p0 = line[max(0,n-1)]
+            //         let p2 = line[min(line.length-1,n+1)]    
+            //         let size = (p1.s ?? 9) * mul
+            //         let a = norm.set().add(p0).sub(p2).norm().perp().cpy().mul(size/3)
+            //         let b = a.cpy().mul(-1);
+            //         (n?CLT:CMT)(a.x+p1.x,a.y+p1.y)
+            //         revPoints.unshift(b.add(p1))
+            //     })  
+            //     FoE(revPoints,(b,n)=>{ CLT(b.x,b.y) })
+            //     //CLW(2)
+            //     CCP()
+            //     CFS(col)
+            //     CFL()      
+            // }
+            // //var Lerpv = (v,a,b,r=V2()) => r.set(Lerp(v,a.x,b.x),Lerp(v,a.y,b.y))
+            // const DrawStrip = (line, col = 'black', mul = 1) => {
+            //     let norm = V2(), rev = [];
+            //     CBP();
+            //     ForPath(line, (p0, p1, p2, n) => {
+            //         let size = (p1.s ?? 9) * mul;
+            //         let a = norm.set(p0).sub(p2).norm().perp().mul(size/3);
+            //         let b = a.cpy().mul(-1);
+            //         (n ? CLT : CMT)(p1.x + a.x, p1.y + a.y);
+            //         rev.unshift(b.add(p1));
+            //     }, false);
+            //     FoE(rev, b => CLT(b.x, b.y));
+            //     CCP(); CFS(col); CFL();
+            // };
+            const subDivWithWeights = (pnts,ex="ws", def={w:10,s:0})=>{
+                var res = []
+                var a, p
+                FoE(pnts,b=>{    
+                    //if (a) {
+                    a && (p = Lerpv(0.5,a,b),
+                        FoE(ex,char=>p[char]=Lerp(0.5,a[char]??def[char],b[char]??def[char])),
+                        //p.w = Lerp(0.5,a.w??0,b.w??0),
+                        res.push(p))
+                    //}
+                    res.push(b)
+                    a = b
+                })
+                return res//levels>0 ? subDiv(res, levels--) : res
+            }
+            
+            const weightedRelax = (pnts, ex="ws", def={w:10})=>{//,ex="xyw")=>{  
+                var res = [pnts[0]]  
+                for(var n=1;n<pnts.length-1;n++) {
+                    // concept: treat x,y,w the same
+                    // loop through and do each index
+                    // not practical, as weight is used by the blending process
+                    // x and y need the weight to calculate    
+                    var a = pnts[n-1]
+                    var p = pnts[n]
+                    var b = pnts[n+1]
+                    //var w = Clamp(Mapf(p.w??0, 0, 32, -1,2), 0,1)
+                    let w = Mapf(p.w??def.w, 0, 32, 0,1)
+                    var r = Lerpv(0.5, a, b)
+                    //ELI("red",r.x,r.y,2,2,0,0,TAU)
+                    let mid = Lerpv(w,p,r)
+                    //mid.w = p.w
+                    FoE(ex,char=>mid[char]=p[char])
+                    res.push(mid)
+                }
+                res.push(pnts[pnts.length-1])
+                return res
+            }
+            // const weightedRelax = (pnts, ex = 'ws', def = {w:10}, wrap = true) => {
+            //     const res = [pnts[0]];
+            //     ForPath(pnts, (p0, p, p2, n) => {
+            //         if (n === 0 || n === pnts.length-1) return;
+            //         let w = Mapf(p.w ?? def.w, 0, 32, 0, 1);
+            //         let mid = Lerpv(0.5, p0, p2);
+            //         let relaxed = Lerpv(w, p, mid);
+            //         FoE(ex, char => relaxed[char] = p[char]);
+            //         res.push(relaxed);
+            //     }, wrap);
+            //     res.push(pnts[pnts.length-1]);
+            //     return res;
+            // };
+            const SubDivRelax = (line,levels=6, def={w:10,s:0}, sline = line)=>( For(0, levels, n=>{ sline = weightedRelax(subDivWithWeights(sline,"ws", def),"ws",def) }), sline )
+            // const SubDivRelax = (line, levels = 6, def = {w:10,s:0}, wrap = true) => {
+            //     let sline = line;
+            //     For(0, levels, () => {
+            //         sline = weightedRelax(subDivWithWeights(sline, 'ws', def), 'ws', def, wrap);
+            //     });
+            //     return sline;
+            // };
+            // usage: ForPath(<array of points>, (a,b,c, n,t))
+            //const ForPath = (p, fn, limit=Wrap) => FoE(p, (p1,n,t)=>fn(p[limit(n-1,0,p.length)],p1,p[limit(n+1,0,p.length)],n,t));
+            const ForPath = (points, fn, doWrap = true) =>
+                FoE(points, (p1, n, t) => {
+                    const len = points.length;
+                    const idx = doWrap ? (i) => Wrap(i, 0, len) : (i) => Clamp(i, 0, len-1);
+                    fn(points[idx(n-1)], p1, points[idx(n+1)], n, t);
+                });
+
+            const Layer = (maxR = 16, contextType = "2d") => {
+                let R = min(cc_Resolution, maxR);
+                let v = DCE("canvas");
+                let c = v.getContext(contextType, {
+                    premultipliedAlpha: false,
+                    antialias: true,
+                });
+                let layer = { cnv: v, ctx: c };
+                let C = ctx;
+
+                CWH(v, PX * R, PY * R);
+                layer.On = (enabled) => {
+                    !enabled && CVR();
+                    CCX(enabled ? c : C);
+                    enabled && (CVS(), CXS(R, R));
+                };
+                layer.Draw = () => {
+                    (PX * R != v.width || PY * R != v.height) &&
+                        CWH(v, PX * R, PY * R);
+                    CDI(v, 0, 0, PX, PY);
+                };
+                return layer;
+            };
+
+                                    
+            /* USAGE:
+            // ========================
+                // LAYERGL USAGE EXAMPLE
+                // ========================
+
+                let vertexShader = `...`;   // your vertex code
+                let fragmentShader = `...`; // your fragment code (with uNodes, uParams, uCount etc.)
+
+                // Create GL layer (maxRes=1 for full-res, 2 for faster)
+                let shader = LayerGL(1, vertexShader, fragmentShader);
+
+                // In setup (after ff = FlowField())
+                let glData = GetFlowFieldDataGL(ff, 64);
+
+                // In draw / animate():
+                shader.u('1f',  'iTime',       time);
+                shader.u('2f',  'iResolution', PX, PY);
+                shader.u('1i',  'uCount',      glData.count);
+                shader.u('4fv', 'uNodes',      glData.nodes);
+                shader.u('2fv', 'uParams',     glData.params);
+
+                shader.Draw();  // renders + blits to 2D canvas
+            */
+            const LayerGL = (maxRes = 2, vertexSrc, fragmentSrc, contextType="webgl") => {
+                let layer = Layer(maxRes, contextType);
+                let gl = layer.ctx;
+                let program, shader;
+                let uniformLocs = {};
+                let attribLocs = {};
+                let attrBuffers = {};
+
+                // debug only (REMOVE FOR RELEASE BUILD)
+                let checkForErrors = (type)=> 
+                    !gl.getShaderParameter(shader,gl.COMPILE_STATUS) 
+                    && console.error((type === gl.VERTEX_SHADER ? 'Vertex' : type?'Fragment':'link') +' Shader error:',gl.getShaderInfoLog(shader));
+
+                let attachAndCompile = (src, type) =>
+                    gl.attachShader(
+                        program,
+                        (gl.shaderSource((shader = gl.createShader(type)), src),
+                        gl.compileShader(shader),
+                        checkForErrors(type), // debug only (REMOVE FOR RELEASE BUILD)
+                        shader)
+                    );
+
+
+                program = gl.createProgram();
+                attachAndCompile(vertexSrc, gl.VERTEX_SHADER);
+                attachAndCompile(fragmentSrc, gl.FRAGMENT_SHADER);
+                gl.linkProgram(program);
+                checkForErrors('Link'); // debug only (REMOVE FOR RELEASE BUILD)
+                gl.useProgram(program);
+
+                let u = (id = 'f1', name, ...values) =>
+                    gl['uniform' + id](
+                        (uniformLocs[name] ??= gl.getUniformLocation(program, name)),
+                        ...values
+                    );
+
+                let a = (name, data, size = 2) => {
+                    let loc = attribLocs[name] ??= gl.getAttribLocation(program, name);
+                    if (data) {
+                        let buf = attrBuffers[name] ??= gl.createBuffer();
+                        gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+                        gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+                    }
+                    gl.enableVertexAttribArray(loc);
+                    gl.vertexAttribPointer(loc, size, gl.FLOAT, false, 0, 0);
+                };
+
+                a('aPosition', new Float32Array([-1,-1,1,-1,-1,1,1,1]));
+
+                return { layer, u, a,
+                    Draw: () => {
+                        gl.viewport(0, 0, layer.cnv.width, layer.cnv.height);
+                        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+                        layer.Draw();
+                    }
+                };
+            };
+
+
+            // compact perlin noise object
+            const Perlin = (
+                octaves = 5,
+                freq = 1,
+                size = 512,
+                am = 0.65,
+                fm = 2,
+                Grid,
+                Noise,
+                Hash,
+                Dot,
+                t0 = V2(),
+                t1 = V2(),
+                t,
+            ) => (
+                (Grid = Array(size)
+                    .fill()
+                    .map((n) => RN.r() * TAU)),
+                (Hash = (i, j) => (i * 97 + j * 103) & (size - 1)),
+                (Dot = (ix, iy, x, y) =>
+                    t1
+                        .circ(Grid[Hash(ix, iy)] + t.phase)
+                        .dot(t0.set(x - ix, y - iy))),
+                (Noise = (x, y, X = floor(x), Y = floor(y), xe = Ease(x - X)) =>
+                    Lerp(
+                        Ease(y - Y),
+                        Lerp(xe, Dot(X, Y, x, y), Dot(X + 1, Y, x, y)),
+                        Lerp(xe, Dot(X, Y + 1, x, y), Dot(X + 1, Y + 1, x, y)),
+                    )),
+                (t = {
+                    phase: 0,
+                    get: (x, y, amp = 1, v = 0, f = 0.01, peak) => (
+                        Loop(octaves, (i) => {
+                            v += Noise(x * f * freq, y * f * freq) * amp;
+                            amp *= am;
+                            f *= fm;
+                        }),
+                        (peak = (1 - am ** octaves) / (1 - am)),
+                        Mapf(v, -peak, peak, 0, 1)
+                    ),
+                })
+            );
+
+            // const FlowField = () => {
+            //     let e = [];
+            //     const f = [
+            //         (r, d, s) => s / d, // 0: 1/d²
+            //         (r, d, s) => s / r, // 1: 1/d
+            //         (r, d, s) => s / (r * d), // 2: 1/d³ (original)
+            //         (r, d, s) => s / (d * d), // 3: 1/d⁴
+            //         (r, d, s) => s * Math.exp(-r * 0.015), // 4: exp
+            //         (r, d, s) => s * Math.exp(-d / 5e4), // 5: gaussian-ish
+            //         (r, d, s) => s / (d + 1e3), // 6: smoothed 1/d²
+            //         (r, d, s, t = f[0]) =>
+            //             t(r, d, s) * (1 + 0.4 * Math.sin(time * 5 + r * 0.1)), // 7: pulsing (reuses 0)
+            //         (r, d, s, t = f[1]) =>
+            //             t(r, d, s) * Math.sin(r * 0.6 + time * 2), // 8: wavy (reuses 1)
+            //         (r, d, s) =>
+            //             s / (d + Math.abs(Math.sin(r * 1.2 + time) * 600)), // 9: breathing barrier
+            //     ];
+
+            //     return {
+            //         add: (x, y, c = 0, d = 1, s = 1, t = 2) =>
+            //             e.push([x, y, c, d, s, t | 0]),
+            //         get: (px, py, fx = 0, fy = 0) => {
+            //             for (let [i, j, k, l, m, n] of e) {
+            //                 let dx = px - i,
+            //                     dy = py - j,
+            //                     ds = dx * dx + dy * dy;
+            //                 if (ds < 1) continue;
+            //                 let r = Math.sqrt(ds) / 1e3;
+            //                 let force = f[n](r, ds, m);
+            //                 fx += force * (l * dx - k * dy);
+            //                 fy += force * (l * dy + k * dx);
+            //             }
+            //             return [fx, fy];
+            //         },
+            //     };
+            // };
+
+            // compact flowfield object
+            const FlowField = (effs = [], dx, dy, dsq, r, factor, effRes) => ({
+                effs,
+                add: (...a) => (effs.push(effRes=[...a]),effRes),
+                get: (x, y, fx = 0, fy = 0) => (
+                    FoE(
+                        effs,
+                        ([ex, ey, c = 0, d = 1, s = 1]) =>
+                            ((dx = x - ex),
+                            (dy = y - ey),
+                            (dsq = dx * dx + dy * dy)) > 0 &&
+                            ((r = sqrt(dsq) / 1000),
+                            (factor = s / (r * dsq)),
+                            (fx += factor * (d * dx - c * dy)),
+                            (fy += factor * (d * dy + c * dx))),
+                    ),
+                    [fx, fy]
+                ),
+            });
+
+            let DrawFlowGrid = (ff, cellSize=25, col=WHITE, steps=4, stepLen=7, lw=3)=>{
+                let grid = {w:PX/cellSize,h:PY/cellSize};
+                // let steps = 4;
+                // let stepLen = 7;
+                let pos = V2();
+                let flow  = V2();
+                CLW(lw);
+                CSS(col);
+                Loop(grid.w,(X,xt)=>{
+                CBP();
+                Loop(grid.h,(Y,yt)=>{
+                    let x = (Y%2?cellSize/2:0) + PX*xt;
+                    let y = PY*yt;
+                    pos.set(x,y)
+                    CMT(x,y);
+                    Loop(steps, n=>{
+                        pos.add( flow.set(...ff.get(pos.x,pos.y)).norm().mul(stepLen) );
+                        CLT(pos.x,pos.y);
+                    })
+                })
+                CST()
+                })
+            }
+
+            function GetFlowFieldDataGL(ff,MAX=32){
+                const list=ff.effs,n=Math.min(list.length,MAX);
+                const nodes=new Float32Array(MAX*4);
+                for(let i=0;i<n;i++){
+                    let[x,y,c,d,s]=list[i],i4=i*4;
+                    nodes[i4]=x;nodes[i4+1]=y;nodes[i4+2]=c*s;nodes[i4+3]=d*s;
+                }
+                return{count:n,nodes};
+            }
+
+            //*
+            // Vector2 maths library 458 chars
+            const V2 = (x, y, t, set) => {
+                t = {
+                    set: (set = (x = 0, y = 0) => (
+                        typeof x != "number" && ({ x, y } = x),
+                        OAS(t, { x, y })
+                    )),
+                };
+                t.dot = (a) => t.x * a.x + t.y * a.y;
+                t.norm = (a) => t.div(t.len());
+                t.dist = (a) => VecDist(t, a);
+                t.rad = (a) => atan2(t.x, -t.y);
+                t.len = (a) => sqrt(t.x ** 2 + t.y ** 2);
+                t.circ = (r) => set(sin(r), -cos(r));
+                t.perp = (a) => set(t.y, -t.x);
+                t.add = (v) => set(t.x + v.x, t.y + v.y);
+                t.sub = (v) => set(t.x - v.x, t.y - v.y);
+                t.mv = (v) => set(t.x * v.x, t.y * v.y);
+                t.inc = (a) => set(t.x + a, t.y + a);
+                t.mul = (v) => set(t.x * v, t.y * v);
+                t.div = (v) => set(t.x / v, t.y / v);
+                t.cpy = (v) => V2(t.x, t.y);
+                return set(x, y);
+            };
+            //*/
+
+            /*
+// Improved 430 character variant
+// (Tersor minify setting tweaks are required to use this)
+
+// terser-ignore
+const V2 = (x, y, t, set) => (t={
+      set  : set = (x=0,y=0) => (typeof x!='number' && ({x,y}=x), OAS(t,{x,y})),
+      dot  :  a => t.x * a.x + t.y * a.y,
+      norm :  a => t.div( t.len() ),
+      dist :  a => VecDist(t, a),
+      rad  :  a => atan2(t.x, -t.y),
+      len  :  a => sqrt(t.x**2 + t.y**2),
+      circ :  r => set(sin(r),-cos(r)),
+      perp :  a => set(t.y,-t.x),
+      add  :  v => set(t.x+v.x, t.y+v.y),
+      sub  :  v => set(t.x-v.x, t.y-v.y),
+      mv   :  v => set(t.x*v.x, t.y*v.y),
+      inc  :  a => set(t.x+a, t.y+a),
+      mul  :  v => set(t.x*v, t.y*v),
+      div  :  v => set(t.x/v, t.y/v),
+      cpy  :  v => V2(t.x, t.y),
+  }, set(x,y))
+
+//*/
+
+            // extra vector stuff
+            const vecDist_tmp = V2();
+            const VecDist = (a, b) => vecDist_tmp.set(a.x, a.y).sub(b).len();
+            const VecPlaneDist = (pos, origin, norm) =>
+                norm.dot(vecDist_tmp.set(pos.x, pos.y).sub(origin));
+
+            // -----------------------------------------------------------------------
+            // COLOUR THEORY FUNCTIONS
+
+            /* USAGE:
+let ct_test  = CT_HSV(100,50,50,0.75) 	// Hue Sat Val (with optional alpha)
+                  .V(1.5)  	     				// mulitply value by 1.5
+                  .H(30)		     				// hue shift by 30 degrees
+                  .C()           				// -> Outputs RGBA colour string
+Log( ct_test )
+//*/
+            const CT_HSV = (h, s, v, a = 1, t) =>
+                (t = {
+                    H: (n) => ((h = Wrap(h + n, 0, 360)), t), // shift hue
+                    S: (m) => ((s = Clamp(s * m, 0, 100)), t), // multipy saturation
+                    V: (m) => ((v = Clamp(v * m, 0, 100)), t), // multiply value
+                    C: (A) => cHSVA(...t.HSV(A)), // -> rgba string
+                    HSV: (A = a) => [h, s, v, A], // -> hsva array
+                    cpy: (A) => CT_HSV(...t.HSV(A)),
+                });
+
+            const CT_Make = (ct_col, ch, array) =>
+                array.map((v) => ct_col.cpy()[ch](v));
+
+            // create colour theory derivatives
+            const CT_Cmp = (ct_col) => ct_col.cpy().H(180);
+            const CT_Tri = (ct_col) => CT_Make(ct_col, "H", [120, -120]);
+            const CT_Ana = (ct_col) => CT_Make(ct_col, "H", [30, -30]);
+            const CT_Spl = (ct_col) => CT_Make(ct_col, "H", [150, -150]);
+            const CT_Tet = (ct_col) => CT_Make(ct_col, "H", [180, 30, -30]);
+            const CT_Mon = (ct_col) => CT_Make(ct_col, "V", [0.5, 1, 1.5]);
+            const CT_Squ = (ct_col) => CT_Make(ct_col, "H", [90, 180, 270]);
+            const CT_Com = (ct_col) => CT_Make(ct_col, "H", [45, -45]);
+            const CT_Viv = (ct_col) => CT_Make(ct_col, "S", [0.5, 1, 1.5]);
+
+            // create derivative lists
+            const CT_All = (ct_col) => ({
+                Cmp: [CT_Cmp(ct_col)],
+                Tri: CT_Tri(ct_col),
+                Ana: CT_Ana(ct_col),
+                Spl: CT_Spl(ct_col),
+                Tet: CT_Tet(ct_col),
+                Mon: CT_Mon(ct_col),
+                Squ: CT_Squ(ct_col),
+                Com: CT_Com(ct_col),
+                Viv: CT_Viv(ct_col),
+            });
+
+            // draw all derivatives
+            const CT_Palette = (
+                colourLists,
+                X = 100,
+                Y = HY,
+                s = 40,
+                txCol = BLACK,
+            ) => {
+                FoP(colourLists, (name, colours, n) => {
+                    let [x, y] = [X, Y + n * s];
+                    TXT(txCol, s * 0.7, name, x, y + s / 1.5);
+                    x += s * 1.5;
+                    FoE(colours, (ct_col) => {
+                        RECT(ct_col.C(1), x, y, s - 3, s - 3);
+                        x += s;
+                    });
+                });
+            };
+
+            // create a radial gradient
+            const RadialGrad = (x, y, radius, cols) => {
+                // cols: [[0,<col> ], [0.5,<col>], [1,<col>]]
+                let grad = ctx.createRadialGradient(x, y, 0, x, y, radius);
+                FoE(cols, (c) => grad.addColorStop(...c));
+                return grad;
+            };
+
+            // create a linear gradient
+            const LinearGrad = (x, y, X, Y, cols) => {
+                // cols: [[0,<col>], [0.5,<col>], [1,<col>]]
+                let grad = ctx.createLinearGradient(x, y, X, Y);
+                FoE(cols, (c) => grad.addColorStop(...c));
+                return grad;
+            };
+
+            // IMPORTANT NOTE:
+            // FOR SOME REASON HAVING THE BELOW FUNCTION PRESENT COSTS CODE SPACE.
+            // EVEN THOUGH ITS NOT USED??  Find out why!
+
+            // creates data for Radial / Linear grads
+            const FuncGrad = (f, n = 99, D = []) => (
+                Loop(n, (n, v) => (D[n] = [v, f(v)])),
+                D
+            );
+
+            // Vector3 maths library
+            const V3 = (...a) => {
+                let t = {}; //this
+                let set = (x = 0, y = 0, z = 0) => OAS(t, { x, y, z });
+
+                //set(...a);
+
+                t.set = set;
+                t.cr = (v) =>
+                    set(
+                        t.y * v.z - t.z * v.y,
+                        t.z * v.x - t.x * v.z,
+                        t.x * v.y - t.y * v.x,
+                    );
+                t.len = (a) => sqrt(t.x ** 2 + t.y ** 2 + t.z ** 2);
+                t.dot = (v) => t.x * v.x + t.y * v.y + t.z * v.z;
+                t.norm = (a) => t.mul(1 / t.len());
+                t.rad = (a) => atan2(t.x, -t.y);
+                t.add = (v) => set(t.x + v.x, t.y + v.y, t.z + v.z);
+                t.sub = (v) => set(t.x - v.x, t.y - v.y, t.z - v.z);
+                t.mv = (v) => set(t.x * v.x, t.y * v.y, t.z * v.z);
+                t.inc = (a) => set(t.x + a, t.y + a, t.z + a);
+                t.mul = (v) => set(t.x * v, t.y * v, t.z * v);
+                t.div = (v) => t.mul(1 / v);
+                t.cpy = (v) => V3(t.x, t.y, t.z);
+                t.sph = (a, b) => set(sin(b) * cos(a), sin(b) * sin(a), cos(b));
+                return set(...a);
+            };
+
+            // Pseudo Random Number Generator
+            const RNG = (s = SEED) => {
+                let a = 4294967295;
+                let b = (123456789 + s) & a;
+                let c = 65535;
+                let d = (987654321 - s) & a;
+
+                // r() is the main 0-1 random function
+                let r = (x) => (
+                    (d = (36969 * (d & c) + (d >>> 16)) & a),
+                    (b = (18e3 * (b & c) + (b >>> 16)) & a),
+                    (((d << 16) + (b & c)) >>> 0) / (a + 1)
+                );
+
+                let t = { r };
+                t.f = (l, h) => l + r() * (h - l);
+                t.i = (l, h) => floor(t.f(l, h));
+                t.c = (c) => r() < c;
+                t.item = (l) => l[t.i(0, l.length)];
+                return t;
+            };
+
+            // CONTEXT contains the cnv and ctx for each canvas
+            const CONTEXT = [...DOCUMENT.querySelectorAll("canvas")].map(
+                (cv) => [cv, CGX(cv, "2d")],
+            );
+            const cc_SetContext = (CX) => ([cnv, ctx] = CX);
+            const cc_GetWindowSize = (a) => [
+                WINDOW.innerWidth,
+                WINDOW.innerHeight,
+            ];
+
+            // Setup canvas
+            const CanvasShadow = (col, radius) =>
+                (cnv.style.boxShadow = col + ` 0 3px ${radius}px`);
+            const CanvasWall = (col) => (DOCUMENT.body.bgColor = col);
+
+            // Canvas setup func, Usage: Canvas(<width>,<height>,<border>)
+            const Canvas = (
+                width = cc_WindowWidth,
+                height = cc_WindowHeight,
+                border = cc_Border,
+                orig_CX = [cnv, ctx],
+            ) => {
+                // iterate contexts
+                FoE(CONTEXT, (CX, n) => {
+                    cc_SetContext(CX); // set the context vars (cnv & ctx)
+
+                    HX = (PX = width) / 2; // set the max and half canvas X pixels const
+                    HY = (PY = height) / 2; // set the max and half canvas Y pixels const
+                    cc_Aspect = PX / PY; // calclate the aspect ratio
+                    cc_Border = border; // set the border const
+
+                    Frame(); // frames the display canvas within the containing div
+                    // also updates the cc_Resolution (if in 1:1 mode)
+
+                    // set the actual canvas dimentions
+                    let res = min(cc_Resolution, n ? 2 : 20);
+                    cnv.width = PX * res; //n?1:cc_Resolution
+                    cnv.height = PY * res; //n?1:cc_Resolution
+
+                    ResetTransform(); // update the current context transform
+                });
+                cc_SetContext(orig_CX); // return to the context
+            };
+
+            // sets the display scale of the canvas area within the html div
+            const Frame = (keep_current_res) => {
+                [cc_WindowWidth, cc_WindowHeight] = cc_GetWindowSize(); // window inner width/height
+                let windowAspect = cc_WindowWidth / cc_WindowHeight; // window aspect ratio
+                let width;
+                let height;
+
+                // constrain the canvas display dimentions based on window size
+                windowAspect > cc_Aspect
+                    ? ((height = cc_WindowHeight - cc_Border),
+                      (width = height * cc_Aspect))
+                    : ((width = cc_WindowWidth - cc_Border),
+                      (height = width / cc_Aspect));
+
+                // recalculate the resolution multiplier (when in pixel perfect mode)
+                cc_PixelPerfect &&
+                    !keep_current_res &&
+                    (cc_Resolution =
+                        (width / PX) * min(cc_MaxDPR, WINDOW.devicePixelRatio));
+
+                //if (prev_res!=cc_Resolution) Log(" prev:"+prev_res+ " new:"+cc_Resolution+"  keep_current_res:"+keep_current_res)
+
+                // apply the final display width / height to the style
+                OAS(cnv.style, {
+                    width: round(width) + `px`,
+                    height: round(height) + `px`,
+                });
+            };
+
+            // user function that replaces the OnResize event
+            const OnResize = (fn) => (cc_OnResize = fn);
+
+            // sets the transform of the canvas context to compensate for res scaling / 1:1 modes
+            const ResetTransform = (r = cc_Resolution) => CTR(r, 0, 0, r, 0, 0);
+            const Reset = (delay = 1) => (cc_ResetArt = delay);
+
+            const cc_SaveImage = (name, l = DCE("a")) => {
+                l.download = name; // set the file name
+                l.href = CONTEXT[0][0].toDataURL(); // get the art and convert it into data
+                l.click(); // auto click the link
+            };
+
+            const ShowTransform = (c = WHITE, p = BLACK) => {
+                FoE([10, 100], (sc, i) => {
+                    cc_CBP();
+                    For(0, PY / sc + 1, (n, t) => {
+                        CMT(0, PY * t);
+                        CLT(PX, PY * t);
+                    });
+                    For(0, PX / sc + 1, (n, t) => {
+                        CMT(PX * t, 0);
+                        CLT(PX * t, PY);
+                    });
+                    cc_CSS(c);
+                    cc_CLW(i ? 2 : 0.5);
+                    cc_CST();
+                });
+                CTA(CENTER);
+                TXT(p, 30, PX + " x " + PY + " pixels", HX, PY - 40);
+                CTA(CENTER);
+                TXT(p, 20, "(coordinate space)", HX, PY - 20);
+                ELI(p, mouseX, mouseY, 20, 1, 0, 0, TAU);
+                ELI(p, mouseX, mouseY, 1, 10, 0, 0, TAU);
+                p = mouseHeld ? "red" : p;
+                TXT(
+                    p,
+                    20,
+                    round(mouseX) + ", " + round(mouseY),
+                    mouseX + 3,
+                    mouseY - 10,
+                );
+            };
+
+            const DrawTable = (
+                table,
+                col = "black",
+                x = 100,
+                y = 50,
+                w = 100,
+                h = 25,
+                font = 20,
+                lw = 1,
+                sc = WHITE,
+                sb = 30,
+            ) => {
+                CVS();
+                sb && Shadow(sc, sb);
+                FoE(table, ([key, value], n, t) => {
+                    let [X, Y] = [x + w, y + h * n];
+                    CTA("right");
+                    TXT(col, font, key, X - 2, Y);
+                    CTA("left");
+                    TXT(col, font, value, X + 2, Y);
+                });
+                CVR();
+            };
+
+            // prints the screen debug stats
+            const DrawCanvasInfo = (...a) => DrawTable(GetCanvasInfo(), ...a);
+            const GetCanvasInfo = () => {
+                [cc_WindowWidth, cc_WindowHeight] = cc_GetWindowSize(); // window width/height
+                let fps =
+                    1000 / Clamp((_ScreenStatTimer ??= Timer())(), 1, 100);
+                let avg_fps = 0;
+                _FPS_past && _FPS_past.push(fps);
+                _FPS_past ??= [];
+                _FPS_past.length >= 100 && _FPS_past.shift();
+                FoE(_FPS_past, (v) => (avg_fps += v / _FPS_past.length));
+                _FPS_smoothed = Lerp(0.3, _FPS_smoothed ?? FPS, fps);
+                return [
+                    [`Version:`, `Canvas Core V${cc_version}`],
+                    [`Coordinate space:`, `${PX} x ${PY}`],
+                    [`Coord space mul:`, `${cc_Resolution.toFixed(2)}`],
+                    [`Canvas pixels:`, `${cnv.width} x ${cnv.height}`],
+                    [`Window size:`, `${cc_WindowWidth} x ${cc_WindowHeight}`],
+                    [
+                        `Window aspect:`,
+                        `${(cc_WindowWidth / cc_WindowHeight).toFixed(2)}`,
+                    ],
+                    [`Canvas aspect:`, `${cc_Aspect.toFixed(2)}`],
+                    [`Device pixel ratio:`, `${WINDOW.devicePixelRatio}`],
+                    [`Pixel Perfect:`, `${!!cc_PixelPerfect}`],
+                    [
+                        `Frame rate:`,
+                        `${fps.toFixed(2)} fps (Targ:${FPS}) (100f average:${avg_fps.toFixed(2)})`,
+                    ],
+                    [`frame(var):`, `${frame}`],
+                    [`time(var):`, `${time.toFixed(2)} s`],
+                    [
+                        `dt(var):`,
+                        `${dt.toFixed(3)} s  (${round(1000 * dt)} ticks)`,
+                    ],
+                ];
+            };
+            let _ScreenStatTimer;
+            let _FPS_smoothed;
+            let _FPS_past;
+
+            let cnv; // the current cnv (this changes with ctx)
+            let ctx; // the active context
+
+            // core constants
+            let SEED = 0/*[values.seed]*/; // built in RNG seed
+            //let TAG   = "/[values.tag]/"         // the tag drawn below the sig
+            let PX, PY, HX, HY; // canvas width/height and half values
+            let mouseX = 0; // mouse x position
+            let mouseY = 0; // mouse y position
+            let mouseHeld = 0; // mouse pressed
+            let mousePos = V2(); // mouse vector position
+
+            /*
+let cc_OnResize = a => cc_PixelPerfect        // pixel perfect mode active?
+                       ? Reset(cc_ResetDelay) // yes: Reset after n frame delay
+                       : Frame()              //  no: re-frame the art
+*/
+            let cc_OnResize = (a) => cc_PixelPerfect && Reset(cc_ResetDelay);
+
+            let cc_InteractFn = (a) => 1; // func for if the cert opens on click
+            let cc_OnMouseUp; // action array called on mouse up
+            let cc_ResetArt = 0; // flag to resets art at start of frame
+            let cc_ResetDelay = 9; // n frame delay for resetting after window resize
+            let cc_Update; // update function for the art & cert
+            let cc_CertVisible; // 1 (cert is visible) 0 (invisble)
+            let cc_WindowWidth; // inner width of the window
+            let cc_WindowHeight; // inner height of the window
+            let cc_Resolution = 1; // current resolution multiplier
+            let cc_PixelPerfect = 1; // 1:1 rendering mode
+            let cc_MaxDPR = 2; // Maximum dpr limit (if fps isnt an issue go higher ie 4,6)
+            let cc_Border = 0; // customisable border percentage
+            let cc_Aspect; // current aspect ratio
+            let cc_CertRes;
+            let cc_nextFrame = 1; // starting from 0 results in malfunciton
+
+            // Timing variables
+            let FPS = 30; // target framerate
+            let frame = 0; // frames since last reset
+            let time = 0; // dt * frame
+            let dt = 0; // fixed delta time ( 1/FPS )
+            let RN;
+            //Canvas(1000,1000,50)
+
+            const cc_PrepFrame = (id, res) => (
+                cc_SetContext(CONTEXT[id]),
+                ResetTransform(res)
+            );
+            const ART = () => {
+                RN = RNG();
+                cc_PrepFrame(0); // setup context and re-frame
+                cc_OnMouseUp = []; // clear any existing click events
+
+                // ---------------------------------------------------------------
+                //insert<functions>
+
+                /*  A place to stash your fucntions / libs  */
+
+                //end<functions>
+                // ---------------------------------------------------------------
+                //insert<setup>
+
+                /*  A place for your setup code   */
+
+                // fixed aspect canvas example
+                Canvas(800, 1200, 40); // (REQUIRED) width, height & border (coordinate space res)
+                CanvasShadow(BLACK, 30); // (optional) canvas shadow + blur radius
+                CanvasWall(GREY); // (optional) wall colour
+                FPS = 30; // (optional) set the framerate target (default:30)
+
+                /*
+// Full screen canvas setup that fills the window
+Canvas(...cc_GetWindowSize(),0) // set the width,height,border of the canvas
+*/
+
+                RECT(cMono(200, 1)); // fill the canvas with a greyscale colour (0-255)
+
+                //end<setup>
+                // ---------------------------------------------------------------
+
+                let cc_ArtDraw = () => {
+                    //cc_PrepFrame(0)         // setup context 0 and re-frame
+
+                    // ---------------------------------------------------------------
+                    //insert<draw>
+
+                    // A place for draw code! (setup & functions are in scope)
+                    // this codeblock is called every frame (until it returns 1)
+
+                    //#<example:nothing>
+                    //#
+
+                    //#<example:demo>
+                    RECT(cHSLA(150, 50, 50, 1)); // fill the canvas
+                    ShowTransform(cMono(255, 0.3)); // draw graph lines
+                    DrawCanvasInfo(); // draw canvas debug info (top left)
+
+                    // Colour theory HSV colour object + Palette
+                    let ct_base = CT_HSV(120, 60, 60); // HSV colour object
+                    let ct_derived = CT_All(ct_base); // Base colour to colour theory derivative objects.
+                    // 	ie: {
+                    //      	Cmp: [<CT_HSV>],          // complimenary
+                    // 				Tri: [<CT_HSV>,<CT_HSV>], // triatic
+                    //				Ana: etc...								// analogous
+                    // 			}
+
+                    CT_Palette(ct_derived); // Draw the palette (bottom left)
+                    let cmp_col = CT_Cmp(ct_base); // Just create the complimentary derivative on its own
+                    // (All derived groups have funcs. ie: CT_Tri, CT_Ana, etc)
+
+                    // Draws fun animated points around a circle
+                    let p = V2(); // make a 2d vector
+                    CBP(); // Begin a new path (CBP is equiv to ctx.beginPath())
+                    Loop(1000, (n, t) => {
+                        // compact loop of 3000 steps. Building the path with multiple rectangles
+                        let [a, b] = [
+                            -15,
+                            Mapf(sin(time + t * 2), -1, 1, -10, 10),
+                        ];
+
+                        p.circ(time * sin(time + t * a) + t / b) // make a direction vector
+                            .mul(
+                                min(HX, HY) *
+                                    (2 + sin(time + t * 1.021)) *
+                                    Lerp(t, 0.1, 0.2),
+                            ) // multiply using sin waves
+                            .add(V2(HX, HY)); // offset to the canvas center
+
+                        CRE(p.x - 2, p.y - 2, 10, 10); // Add a rectangle to the path. Equivalent to ctx.rect(...)
+                    });
+
+                    // fill the path areas and stroke the paths to make lines
+                    CFS(cHSLA(240, 20, 100, 0.3));
+                    CFL(); // CFS equiv: ctx.fillStyle.   CFL equiv: ctx.fill
+                    CSS(cHSLA(240, 100, 10, 0.1));
+                    CLW(1); // CSS equiv: ctx.strokeStyle. CLW equiv: ctx.lineWidth
+                    CST(); // CST equiv: ctx.stroke()	    (draws the line)
+                    //#
+
+                    // Right!... Lets get creating!!
+
+                    // the return signals art completion state
+                    return 0; // 0 (ongoing draw)  1 (complete)
+
+                    //end<draw>
+                    // ---------------------------------------------------------------
+                };
+
+                let MakeCert = (RN = RNG()) => {
+                    //cc_CertRes = min(cc_Resolution, 2)
+                    cc_PrepFrame(1, (cc_CertRes = min(cc_Resolution, 2))); // setup context 1 with the res override
+
+                    // ---------------------------------------------------------------
+                    //insert<cert>
+
+                    //   This codeblock is for the back of the canvas
+                    //	 including the resolution selection buttons
+
+                    // Canvas back customisation variables
+                    let scale = 0.9; // Cert body scale
+                    let y_pos = PY - 150; // position of the resolution UI
+                    let savePos_x = PX - 120; // save button position
+                    let savePos_y = PY - 75;
+                    let saveWidth = 30; // width of save button
+                    let resText_x = HX; // resolution text position
+                    let resText_y = y_pos + 65;
+                    let posA = V2(75, y_pos); // left and right pos of button row
+                    let posB = V2(PX - 75, y_pos);
+                    let highlightCol = GREEN; // button highlighted colour
+                    let selectedCol = "gold"; // button selected colour ring
+                    let btnRadius = 22; // button size
+                    let btnTextScale = 18; // button text size
+                    let maxRes = 12; // maximum resolution
+
+                    let resString = (n) =>
+                        round(PX * n) + " x " + round(PY * n) + " px";
+
+                    let CERT = {
+                        // this info gets displayed on the canvas back
+                        Piece: 1/*[values.num]*/, // special insert directives
+                        Name: "/[values.name]/", //   that get populated during
+                        Description: "/[values.description]/".split(`|`), //   the build process
+                        /*#IF[values.has_properties]
+    Properties:  "/[values.property_names]/".split(`|`),
+    //*/
+                        Artist: "/[values.artist]/",
+                        Seed: SEED,
+                    };
+
+                    // simplified button mechanism used for the resolution & save buttons
+                    let ChainSlider = (
+                        a,
+                        b,
+                        steps,
+                        radius,
+                        drawFn,
+                        onClick,
+                        selected,
+                        selDist,
+                    ) =>
+                        // add a mouse up event
+                        (
+                            cc_OnMouseUp.push(
+                                (ev) =>
+                                    selected >= 0 &&
+                                    onClick(selected, (selected = -1)),
+                            ),
+                            // buttons update function (reduced!)
+                            (v) => (
+                                (selDist = radius),
+                                (v = -1),
+                                Loop(
+                                    steps,
+                                    (
+                                        n,
+                                        t,
+                                        hover,
+                                        p = Lerpv(t, a, b),
+                                        dist = VecDist(mousePos, p),
+                                    ) => {
+                                        drawFn(
+                                            p,
+                                            n,
+                                            (hover =
+                                                dist < radius &&
+                                                dist < selDist &&
+                                                ((v = n),
+                                                (selDist = dist),
+                                                selected == n)),
+                                        );
+                                    },
+                                ),
+                                (selected = v)
+                            )
+                        );
+
+                    let edge = 3; //px
+                    let s = (min(PX, PY) / 800) * scale;
+                    let c0 = cMono(50, 0.8);
+                    let c1 = cMono(100, 0.6);
+                    let x = 0;
+                    let y = -300;
+                    let n = 0;
+                    let k;
+
+                    CentreText();
+                    CVS();
+
+                    // draw the border edge and fill the cert background
+                    cc_CBP();
+                    CRE(edge, edge, PX - edge * 2, PY - edge * 2);
+                    //CRE(...Extents(2))
+                    CTC();
+
+                    cc_CLW(50);
+                    //cc_CSS(BLACK)
+                    cc_CFS(WHITE);
+                    CFL();
+                    Shadow(GREY, 10);
+                    cc_CST();
+                    CXT(HX, HY);
+                    CXS(s, s);
+
+                    // draw the CERT text with titles for each field.  Name, description, etc...
+                    FoP(CERT, (k, t) => {
+                        TXT(c0, 18, k, x, (y += 40));
+                        IsArray(t)
+                            ? FoE(t, (i) => TXT(c1, 23, i, x, (y += 28)))
+                            : TXT(c1, 23, t, x, (y += 28));
+                    });
+                    CVR();
+
+                    // resolution selection buttons
+                    let resSelector = ChainSlider(
+                        posA,
+                        posB,
+                        maxRes + 1,
+                        btnRadius * 2.5,
+                        ({ x, y }, n, hover) => {
+                            // draw function
+                            let sel = n
+                                ? n == cc_Resolution
+                                : n == 0 && cc_PixelPerfect;
+                            let end = n == 0 || n == maxRes;
+                            let large = end || sel || hover;
+                            Circle(
+                                sel ? selectedCol : WHITE,
+                                x,
+                                y,
+                                btnRadius + 6,
+                            );
+                            CircleExt(
+                                hover ? highlightCol : WHITE,
+                                x,
+                                y,
+                                large ? btnRadius : 7,
+                                large ? 2 : 1,
+                                BLACK,
+                            );
+                            large &&
+                                TXT(
+                                    hover ? WHITE : BLACK,
+                                    btnTextScale,
+                                    n ? "x" + n : "1:1",
+                                    x,
+                                    y,
+                                );
+                            hover &&
+                                TXT(
+                                    GREEN,
+                                    23,
+                                    n ? resString(n) : "Display mode",
+                                    resText_x,
+                                    resText_y,
+                                );
+                        },
+                        (n) => {
+                            cc_PixelPerfect = !n;
+                            cc_Resolution = max(1, n);
+                            Reset();
+                        },
+                    ); // on click event
+
+                    let saveButton = ChainSlider(
+                        V2(savePos_x - saveWidth, savePos_y),
+                        V2(savePos_x + saveWidth, savePos_y),
+                        9,
+                        btnRadius * 1.5,
+                        (a) => 0,
+                        (n) => cc_SaveImage(CERT.Name),
+                    ); // on click event
+
+                    // draw the current resolution of the canvas
+                    TXT(
+                        BLACK,
+                        20,
+                        resString(cc_Resolution),
+                        resText_x,
+                        resText_y + 30,
+                    );
+
+                    // Draw the Piece tag and the ccv3 mark (top left/right)
+                    TXT(c1, 10, "/[values.tag]/", 52, 17);
+                    TXT(c1, 10, "ccv3", PX - 38, 17);
+
+                    return (h) => {
+                        // this return function is the Certificates draw update
+                        // only called when the cert is visible
+
+                        h = saveButton() >= 0;
+                        Loop(2, (n) =>
+                            Pill(
+                                n && h ? WHITE : BLACK,
+                                savePos_x,
+                                savePos_y,
+                                40,
+                                50 - n * 4,
+                            ),
+                        );
+                        TXT(
+                            h ? BLACK : WHITE,
+                            18,
+                            "Save",
+                            savePos_x,
+                            savePos_y,
+                        );
+                        Pill(WHITE, resText_x, resText_y, 90, 30);
+                        resSelector();
+
+                        return 0;
+                    };
+
+                    //end<cert>
+                    // ---------------------------------------------------------------
+                };
+
+                let cc_ArtDone;
+                let cc_CertDone;
+                let cc_CertDraw = MakeCert();
+
+                cc_Update = () => {
+                    !cc_ArtDone &&
+                        (cc_PrepFrame(0), (cc_ArtDone = cc_ArtDraw()));
+
+                    cc_CertVisible &&
+                        (cc_PrepFrame(1, cc_CertRes), !cc_CertDone) &&
+                        (cc_CertDone = cc_CertDraw());
+                };
+            };
+
+            const BEGIN = (timeStamp, raf = requestAnimationFrame) => {
+                timeStamp >= cc_nextFrame
+                    ? // FRAME RATE REGULATOR
+                      ((cc_nextFrame += 1000 / FPS) < timeStamp && // advance the next frame time by a fixed step
+                          (cc_nextFrame = timeStamp + 10), // if next frame time is in the past, bump it to now and a bit
+                      // Art init and resetting mechanism
+                      (!cc_Update || (cc_ResetArt && cc_ResetArt-- == 1)) && // if there is no update func or reset art triggered
+                          (ART(), (frame = time = 0)), // reset Art() and reset the environment timers
+                      // Art side timer variables
+                      (time = frame++ * (dt = 1 / FPS)), // advance frame time and update dt based on the FPS value
+                      // Call the art update function
+                      cc_Update?.(), // call art/cert update functions
+                      // Wait for 10 ticks (0.01 seconds) then call raf (requestAnimationFrame)
+                      setTimeout((a) => raf(BEGIN), 10)) // short delay until next anim frame request
+                    : // if its not yet time for teh frame and the above block
+                      // is skipped. Request the next next anim frame!
+                      raf(BEGIN); // call to request the next animation frame
+            };
+
+            BEGIN(0); // start the canvas
+
+            // INPUT HANDLING!
+            {
+                // Canvas events for mouse, touch and window resize
+                let t = "touch";
+                let m = "mouse";
+                let cX = "clientX";
+                let cY = "clientY";
+                let passive = { passive: !1 };
+                //let prevDef  = e => 0//e.preventDefault()
+                let stopProp = (e) => e.stopPropagation();
+                let doTouch = (e, t) => (
+                    (t = e.changedTouches[0]),
+                    (e[cX] = t.pageX),
+                    (e[cY] = t.pageY),
+                    e
+                );
+                //let doTouch  = (e,t) => (prevDef(e), t=e.changedTouches[0], e[cX]=t.pageX, e[cY]=t.pageY, e)
+                let doMouse = (ev, B = cnv.getBoundingClientRect()) =>
+                    mousePos.set(
+                        (mouseX = Mapf(ev[cX], B.left, B.right, 0, PX)),
+                        (mouseY = Mapf(ev[cY], B.top, B.bottom, 0, PY)),
+                    );
+
+                let SetCertVisibility = (a) => {
+                    CONTEXT[1][0].style.display = a ? "block" : "none";
+                }; //;cc_WindowResized()}
+                let down = (e) => {
+                    mouseHeld = 1;
+                    doMouse(e);
+                    SetCertVisibility((cc_CertVisible = cc_InteractFn()));
+                    //prevDef(e)
+                    stopProp(e);
+                };
+                let up = (e) => {
+                    doMouse(e);
+                    cc_CertVisible && FoE(cc_OnMouseUp, (p) => p());
+                    SetCertVisibility((mouseHeld = cc_CertVisible = 0));
+                };
+
+                FoE(
+                    [
+                        [t + "start", (e) => down(doTouch(e))],
+                        [t + "move", (e) => doMouse(doTouch(e))],
+                        [t + "end", (e) => up(doTouch(e))],
+                        [m + "down", down],
+                        [m + "move", doMouse],
+                        [m + "up", up],
+                        [
+                            "resize",
+                            (a) => (
+                                Loop(2, (n) => (cc_PrepFrame(n), Frame(1))), // rescale to fit
+                                cc_OnResize()
+                            ), // call user onResize
+                        ],
+                    ],
+                    ([key, fn]) => CEV(key, fn, WINDOW, passive),
+                );
+
+                SetCertVisibility();
+            }
+            //PROCESS_END<minify>
+        </script>
+    </body>
+</html>

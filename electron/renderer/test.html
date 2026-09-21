@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Construct² — Electron test</title>
+  <style>
+    :root { font-family: system-ui, sans-serif; color: #e8e8e8; background: #1a1a1c; }
+    body { margin: 0; padding: 2rem; max-width: 42rem; }
+    h1 { font-size: 1.25rem; font-weight: 600; margin: 0 0 0.5rem; }
+    p { line-height: 1.5; margin: 0.5rem 0; color: #b8b8bc; }
+    code { background: #2d2d32; padding: 0.12rem 0.35rem; border-radius: 4px; font-size: 0.9em; }
+    .ok { color: #7dffb3; margin-top: 1rem; }
+    ul { margin: 0.75rem 0; padding-left: 1.25rem; color: #b8b8bc; }
+  </style>
+</head>
+<body>
+  <h1>Construct² — Phase 1</h1>
+  <p>If you see this inside a desktop window, Electron is loading the renderer from <code>electron/renderer/test.html</code>.</p>
+  <p id="preload-check" class="ok"></p>
+  <p><strong>Note</strong></p>
+  <ul>
+    <li>Main UI: <code>renderer/index.html</code> (project list + dev UI iframe).</li>
+    <li>This page is only for checking Electron + preload without the full UI.</li>
+  </ul>
+  <script>
+    const el = document.getElementById("preload-check");
+    if (window.advBuilder && typeof window.advBuilder.startDevUi === "function") {
+      el.textContent = "Preload bridge OK (advBuilder API present).";
+    } else {
+      el.textContent = "Preload bridge missing — check electron/preload.js and webPreferences.";
+      el.style.color = "#ff8a8a";
+    }
+  </script>
+</body>
+</html>

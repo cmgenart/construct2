@@ -1,0 +1,127 @@
+{
+  "name": "construct2",
+  "version": "0.1.1",
+  "private": false,
+  "author": "Charles Machin",
+  "license": "MIT",
+  "description": "Construct² — build and ship single-file HTML generative art",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "builder": "node builder.js",
+    "new-project": "node scripts/new-project.js",
+    "import-legacy": "node scripts/import-legacy-project.js",
+    "extract-legacy-runtimes": "node scripts/extract-legacy-runtimes.js --write-manifest",
+    "dist": "electron-builder --publish never",
+    "dist:win": "node scripts/build-win.js --win --x64 --publish never && node scripts/build-win.js --win --arm64 --publish never",
+    "dist:win:x64": "node scripts/build-win.js --win --x64 --publish never",
+    "dist:win:arm64": "node scripts/build-win.js --win --arm64 --publish never",
+    "dist:win:combo": "node scripts/build-win.js --win --x64 --arm64 --publish never",
+    "test:legacy": "node legacy_import.test.js",
+    "test:legacy-extract": "node legacy_runtime_extract.test.js",
+    "test:legacy-discovery": "node legacy_discovery.test.js",
+    "test:legacy-inplace": "node legacy_inplace.test.js",
+    "test:legacy-readonly": "node legacy_readonly_policy.test.js",
+    "test:legacy-collections": "node legacy_collection_import.test.js",
+    "test:collection-source": "node collection_source_snapshot.test.js",
+    "test:build-values": "node build_value_derived.test.js",
+    "test:workspace-pins": "node workspace_pins.test.js",
+    "test:workspace-duplicate": "node workspace_duplicate.test.js",
+    "test:workspace-first-run": "node workspace_first_run.test.js",
+    "test:builder-host": "node electron/builder_host.test.js",
+    "test:user-data-profile": "node electron/user_data_profile.test.js",
+    "test:github-issue": "node electron/github_issue.test.js",
+    "test:project-search": "node project_search.test.js",
+    "test:project-inspect": "node project_inspect.test.js",
+    "test:source-inventory": "node source_inventory.test.js",
+    "test:project-runtime": "node project_runtime.test.js",
+    "test:param": "node param_scan.test.js && node param_color.test.js && node param_coerce.test.js && node param_persist.test.js && node param_sendparams_patch.test.js && node driver_store.test.js && node param_drivers.test.js && node build_value_order.test.js && node property_parse.test.js && node import_resolve.test.js && node auto_resolve.test.js && node collection_auto_settings.test.js && node auto_context.test.js && node auto_generate.test.js && node cardano_metadata_split.test.js"
+  },
+  "devDependencies": {
+    "electron": "^42.0.1",
+    "electron-builder": "^26.15.6"
+  },
+  "dependencies": {
+    "@jridgewell/source-map": "^0.3.11",
+    "chokidar": "^5.0.0",
+    "open": "^11.0.0",
+    "ws": "^8.19.0"
+  },
+  "build": {
+    "appId": "com.cmgenart.construct2",
+    "productName": "Construct²",
+    "executableName": "Construct2",
+    "asar": false,
+    "directories": {
+      "output": "dist"
+    },
+    "artifactName": "Construct2 Setup ${version}-${arch}.${ext}",
+    "icon": "docs/icons/icon.ico",
+    "extraResources": [
+      {
+        "from": "../../construct-demos/construct",
+        "to": "demos",
+        "filter": [
+          "**/*",
+          "!README.md"
+        ]
+      }
+    ],
+    "files": [
+      "electron/**/*",
+      "builder.js",
+      "builder.*.js",
+      "*.js",
+      "*.html",
+      "lib/**/*",
+      "runtimes/**/*",
+      "templates/**/*",
+      "ui/**/*",
+      "vendor/**/*",
+      "scripts/**/*",
+      "parameters/**/*",
+      "package.json",
+      "LICENSE",
+      "!**/*.test.js",
+      "!wip/**/*",
+      "docs/**/*.md",
+      "docs/icons/**/*",
+      "!docs/icons/png/**",
+      "!docs/icons/preview/**"
+    ],
+    "win": {
+      "icon": "docs/icons/icon.ico",
+      "executableName": "Construct2",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "nsis",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "shortcutName": "Construct2",
+      "uninstallDisplayName": "Construct²",
+      "installerIcon": "docs/icons/icon-mono.ico",
+      "uninstallerIcon": "docs/icons/icon-mono.ico",
+      "installerHeaderIcon": "docs/icons/icon-mono.ico"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "cmgenart",
+        "repo": "construct2"
+      }
+    ]
+  }
+}

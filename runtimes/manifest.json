@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "runtimes": [
+    {
+      "id": "cc-v3.23",
+      "file": "cc-v3.23.html",
+      "ccVersion": "3.23",
+      "label": "Canvas Core v3.23",
+      "aliases": ["cc-v3"]
+    },
+    {
+      "id": "cc-v3.22",
+      "file": "cc-v3.22.html",
+      "ccVersion": "3.22",
+      "label": "Canvas Core v3.22"
+    }
+  ]
+}

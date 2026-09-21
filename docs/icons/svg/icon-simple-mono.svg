@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="Generative art hex-cube icon v2">
+  <title>Hex Vortex v2 — open mouths, inward recursion</title>
+  <defs>
+    
+  <filter id="iconsimplemono-bloom" x="-35%" y="-35%" width="170%" height="170%" color-interpolation-filters="sRGB">
+    <feGaussianBlur in="SourceGraphic" stdDeviation="3.8" result="b1"/>
+    <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="b2"/>
+    <feMerge>
+      <feMergeNode in="b2"/>
+      <feMergeNode in="b1"/>
+      <feMergeNode in="SourceGraphic"/>
+    </feMerge>
+  </filter>
+
+  </defs>
+  <rect width="100%" height="100%" fill="#000000"/>
+  <g filter="url(#iconsimplemono-bloom)">
+    <polygon points="512.000,490.000 531.053,501.000 531.053,523.000 512.000,534.000 492.947,523.000 492.947,501.000" fill="none" stroke="#ffffff" stroke-width="1.2" stroke-opacity="0.18" stroke-linejoin="round"/>
+    <g class="cube c0">
+      <polygon points="338.795,136.000 512.000,36.000 685.205,136.000 512.000,236.000" fill="#F4F7FF" fill-opacity="0.09"/>
+      <path d="M512.00,36.00 L685.21,136.00 M685.21,136.00 L685.21,336.00 M338.79,336.00 L338.79,136.00 M338.79,136.00 L512.00,36.00" fill="none" stroke="#F4F7FF" stroke-width="6.6" stroke-linejoin="round" stroke-linecap="round"/>
+      <line x1="512.00" y1="236.00" x2="685.21" y2="136.00" stroke="#F4F7FF" stroke-width="3.2" stroke-linecap="round" stroke-opacity="0.9"/>
+      <line x1="512.00" y1="236.00" x2="338.79" y2="136.00" stroke="#F4F7FF" stroke-width="3.2" stroke-linecap="round" stroke-opacity="0.9"/>
+      <polygon points="512.000,436.000 338.795,336.000 338.795,136.000 512.000,236.000" fill="#F4F7FF" fill-opacity="0.025" stroke="#F4F7FF" stroke-width="2.4" stroke-opacity="0.42" stroke-linejoin="round"/>
+      <polygon points="487.838,423.030 428.775,388.930 428.775,320.730 487.838,354.830" fill="none" stroke="#F4F7FF" stroke-width="2.0" stroke-opacity="0.7" stroke-linejoin="round"/>
+    </g>
+<g class="cube c1">
+      <polygon points="577.818,274.000 751.023,174.000 924.228,274.000 751.023,374.000" fill="#F4F7FF" fill-opacity="0.09"/>
+      <polygon points="924.228,274.000 924.228,474.000 751.023,574.000 751.023,374.000" fill="#F4F7FF" fill-opacity="0.04"/>
+      <path d="M751.02,174.00 L924.23,274.00 M924.23,274.00 L924.23,474.00 M924.23,474.00 L751.02,574.00 M577.82,274.00 L751.02,174.00" fill="none" stroke="#F4F7FF" stroke-width="6.6" stroke-linejoin="round" stroke-linecap="round"/>
+      <line x1="751.02" y1="374.00" x2="924.23" y2="274.00" stroke="#F4F7FF" stroke-width="3.2" stroke-linecap="round" stroke-opacity="0.9"/>
+      <line x1="751.02" y1="374.00" x2="751.02" y2="574.00" stroke="#F4F7FF" stroke-width="3.2" stroke-linecap="round" stroke-opacity="0.9"/>
+      <line x1="751.02" y1="374.00" x2="577.82" y2="274.00" stroke="#F4F7FF" stroke-width="3.2" stroke-linecap="round" stroke-opacity="0.9"/>
+      <polygon points="751.023,574.000 577.818,474.000 577.818,274.000 751.023,374.000" fill="#F4F7FF" fill-opacity="0.025" stroke="#F4F7FF" stroke-width="2.4" stroke-opacity="0.42" stroke-linejoin="round"/>
+      <polygon points="636.032,508.590 576.969,474.490 576.969,406.290 636.032,440.390" fill="none" stroke="#F4F7FF" stroke-width="2.0" stroke-opacity="0.7" stroke-linejoin="round"/>
+    </g>
+<g class="cube c5">
+      <polygon points="99.772,274.000 272.977,174.000 446.182,274.000 272.977,374.000" fill="#F4F7FF" fill-opacity="0.09"/>
+      <polygon points="272.977,574.000 99.772,474.000 99.772,274.000 272.977,374.000" fill="#F4F7FF" fill-opacity="0.06"/>
+      <path d="M272.98,174.00 L446.18,274.00 M272.98,574.00 L99.77,474.00 M99.77,474.00 L99.77,274.00 M99.77,274.00 L272.98,174.00" fill="none" stroke="#F4F7FF" stroke-width="6.6" stroke-linejoin="round" stroke-linecap="round"/>
+      <line x1="272.98" y1="374.00" x2="446.18" y2="274.00" stroke="#F4F7FF" stroke-width="3.2" stroke-linecap="round" stroke-opacity="0.9"/>
+      <line x1="272.98" y1="374.00" x2="272.98" y2="574.00" stroke="#F4F7FF" stroke-width="3.2" stroke-linecap="round" stroke-opacity="0.9"/>
+      <line x1="272.98" y1="374.00" x2="99.77" y2="274.00" stroke="#F4F7FF" stroke-width="3.2" stroke-linecap="round" stroke-opacity="0.9"/>
+      <polygon points="446.182,274.000 446.182,474.000 272.977,574.000 272.977,374.000" fill="#F4F7FF" fill-opacity="0.025" stroke="#F4F7FF" stroke-width="2.4" stroke-opacity="0.42" stroke-linejoin="round"/>
+      <polygon points="447.031,406.290 447.031,474.490 387.968,508.590 387.968,440.390" fill="none" stroke="#F4F7FF" stroke-width="2.0" stroke-opacity="0.7" stroke-linejoin="round"/>
+    </g>
+<g class="cube c2">
+      <polygon points="924.228,550.000 924.228,750.000 751.023,850.000 751.023,650.000" fill="#F4F7FF" fill-opacity="0.04"/>
+      <path d="M751.02,450.00 L924.23,550.00 M924.23,550.00 L924.23,750.00 M924.23,750.00 L751.02,850.00 M751.02,850.00 L577.82,750.00" fill="none" stroke="#F4F7FF" stroke-width="6.6" stroke-linejoin="round" stroke-linecap="round"/>
+      <line x1="751.02" y1="650.00" x2="924.23" y2="550.00" stroke="#F4F7FF" stroke-width="3.2" stroke-linecap="round" stroke-opacity="0.9"/>
+      <line x1="751.02" y1="650.00" x2="751.02" y2="850.00" stroke="#F4F7FF" stroke-width="3.2" stroke-linecap="round" stroke-opacity="0.9"/>
+      <polygon points="751.023,850.000 577.818,750.000 577.818,550.000 751.023,650.000" fill="#F4F7FF" fill-opacity="0.025" stroke="#F4F7FF" stroke-width="2.4" stroke-opacity="0.42" stroke-linejoin="round"/>
+      <polygon points="636.032,679.710 576.969,645.610 576.969,577.410 636.032,611.510" fill="none" stroke="#F4F7FF" stroke-width="2.0" stroke-opacity="0.7" stroke-linejoin="round"/>
+    </g>
+<g class="cube c4">
+      <polygon points="272.977,850.000 99.772,750.000 99.772,550.000 272.977,650.000" fill="#F4F7FF" fill-opacity="0.06"/>
+      <path d="M446.18,750.00 L272.98,850.00 M272.98,850.00 L99.77,750.00 M99.77,750.00 L99.77,550.00 M99.77,550.00 L272.98,450.00" fill="none" stroke="#F4F7FF" stroke-width="6.6" stroke-linejoin="round" stroke-linecap="round"/>
+      <line x1="272.98" y1="650.00" x2="272.98" y2="850.00" stroke="#F4F7FF" stroke-width="3.2" stroke-linecap="round" stroke-opacity="0.9"/>
+      <line x1="272.98" y1="650.00" x2="99.77" y2="550.00" stroke="#F4F7FF" stroke-width="3.2" stroke-linecap="round" stroke-opacity="0.9"/>
+      <polygon points="446.182,550.000 446.182,750.000 272.977,850.000 272.977,650.000" fill="#F4F7FF" fill-opacity="0.025" stroke="#F4F7FF" stroke-width="2.4" stroke-opacity="0.42" stroke-linejoin="round"/>
+      <polygon points="447.031,577.410 447.031,645.610 387.968,679.710 387.968,611.510" fill="none" stroke="#F4F7FF" stroke-width="2.0" stroke-opacity="0.7" stroke-linejoin="round"/>
+    </g>
+<g class="cube c3">
+      <polygon points="685.205,688.000 685.205,888.000 512.000,988.000 512.000,788.000" fill="#F4F7FF" fill-opacity="0.04"/>
+      <polygon points="512.000,988.000 338.795,888.000 338.795,688.000 512.000,788.000" fill="#F4F7FF" fill-opacity="0.06"/>
+      <path d="M685.21,688.00 L685.21,888.00 M685.21,888.00 L512.00,988.00 M512.00,988.00 L338.79,888.00 M338.79,888.00 L338.79,688.00" fill="none" stroke="#F4F7FF" stroke-width="6.6" stroke-linejoin="round" stroke-linecap="round"/>
+      <line x1="512.00" y1="788.00" x2="685.21" y2="688.00" stroke="#F4F7FF" stroke-width="3.2" stroke-linecap="round" stroke-opacity="0.9"/>
+      <line x1="512.00" y1="788.00" x2="512.00" y2="988.00" stroke="#F4F7FF" stroke-width="3.2" stroke-linecap="round" stroke-opacity="0.9"/>
+      <line x1="512.00" y1="788.00" x2="338.79" y2="688.00" stroke="#F4F7FF" stroke-width="3.2" stroke-linecap="round" stroke-opacity="0.9"/>
+      <polygon points="338.795,688.000 512.000,588.000 685.205,688.000 512.000,788.000" fill="#F4F7FF" fill-opacity="0.025" stroke="#F4F7FF" stroke-width="2.4" stroke-opacity="0.42" stroke-linejoin="round"/>
+      <polygon points="452.937,621.120 512.000,587.020 571.063,621.120 512.000,655.220" fill="none" stroke="#F4F7FF" stroke-width="2.0" stroke-opacity="0.7" stroke-linejoin="round"/>
+    </g>
+  </g>
+  <g>
+      
+  </g>
+</svg>

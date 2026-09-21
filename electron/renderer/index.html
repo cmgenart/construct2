@@ -1,0 +1,1706 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Construct²</title>
+  <link rel="stylesheet" href="project_tree.css" />
+  <link rel="stylesheet" href="../../ui/tokens-default.css" />
+  <link rel="stylesheet" href="../../ui/tokens-nord.css" />
+  <link rel="stylesheet" href="../../ui/tokens-nord-variants.css" />
+  <link rel="stylesheet" href="../../ui/doc_viewer.css" />
+<script>
+  try {
+    const t = localStorage.getItem('advBuilder.theme') || 'light';
+    const p = localStorage.getItem('advBuilder.palette') || 'default';
+    const palette = p === 'nord' || /^nord-\d+$/.test(p) ? p : 'default';
+    document.documentElement.dataset.palette = palette;
+    document.documentElement.dataset.theme =
+      palette !== 'default' ? 'dark' : (t === 'dark' ? 'dark' : 'light');
+  } catch (_) {}
+</script>
+<style>
+  :root {
+    font-family: system-ui, sans-serif;
+    --rail-width: 260px;
+    --start-bg: color-mix(in srgb, var(--bg) 68%, #000);
+    --card-hover: color-mix(in srgb, var(--card) 88%, var(--text));
+    --folder-bg: var(--card);
+    --accent-bg: var(--accent-soft);
+  }
+  html[data-palette="default"][data-theme="light"],
+  html[data-theme="light"] {
+    color: var(--text);
+    background: var(--bg);
+  }
+  html[data-palette="default"][data-theme="dark"],
+  html[data-palette="nord"],
+  html[data-palette^="nord-"],
+  html[data-theme="dark"] {
+    color: var(--text);
+    background: var(--bg);
+  }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); }
+    body { display: flex; flex-direction: column; min-height: 0; }
+
+    #view-picker,
+    #view-dev {
+      display: none;
+      flex: 1;
+      min-height: 0;
+      min-width: 0;
+    }
+    #view-picker.active {
+      display: flex;
+      flex-direction: column;
+      background: var(--start-bg);
+    }
+    #view-dev.active { display: flex; flex-direction: column; background: var(--bg); }
+
+    .picker-header { padding: 1rem 1.25rem 0.5rem; }
+    .picker-title-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+    }
+    .picker-mark {
+      width: 40px;
+      height: 40px;
+      flex-shrink: 0;
+      margin-top: 0.1rem;
+      border-radius: 8px;
+    }
+    .picker-title-text { flex: 1; min-width: 0; }
+    .picker-title-row .ghost {
+      flex-shrink: 0;
+      margin-top: 0.15rem;
+      font: inherit;
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 0.35rem 0.7rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--btn-bg, var(--card));
+      color: var(--btn-text, inherit);
+      cursor: pointer;
+    }
+    .picker-title-row .ghost:hover { filter: brightness(1.08); }
+    h1 { font-size: 1.15rem; font-weight: 600; margin: 0 0 0.35rem; }
+    .sub { color: var(--muted); font-size: 0.88rem; margin: 0; }
+    #dlg-about { max-width: 32rem; width: min(32rem, calc(100vw - 2rem)); }
+    #doc-viewer-back {
+      position: fixed;
+      inset: 0;
+      z-index: 20000;
+    }
+    #doc-viewer { --depth-shadow-lg: 0 18px 48px rgba(0, 0, 0, 0.28); }
+    #doc-viewer-body { overflow: auto; }
+    .about-mark {
+      display: block;
+      width: 96px;
+      height: 96px;
+      margin: 0 auto 0.85rem;
+      border-radius: 18px;
+    }
+    .about-lead { margin: 0 0 0.75rem; line-height: 1.45; }
+    .about-copy { margin: 0 0 0.75rem; line-height: 1.5; color: var(--text); }
+    .about-close { margin: 0; color: var(--muted); font-size: 0.92rem; line-height: 1.45; }
+    #about-version { margin: 0 0 0.85rem; color: var(--muted); font-size: 0.8rem; text-align: center; }
+    .status { font-size: 0.85rem; margin: 0; padding: 0 1.25rem 0.5rem; min-height: 1.25rem; }
+    .status.err { color: var(--status-err-text); }
+    .status.ok { color: var(--accent); }
+    .status.warn { color: var(--status-warn-text); }
+
+    .picker-body--tree { flex: 1; min-height: 0; }
+
+    .foot { padding: 0 1.25rem 1.25rem; font-size: 0.8rem; color: var(--muted); }
+    code { background: var(--card); padding: 0.1rem 0.35rem; border-radius: 4px; font-size: 0.88em; }
+
+    .dev-split {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: row;
+      overflow: hidden;
+    }
+    #projects-rail {
+      flex-shrink: 0;
+      width: 0;
+      min-width: 0;
+      overflow: hidden;
+      background: var(--start-bg);
+      border-right: none;
+      display: flex;
+      flex-direction: column;
+      transition: width 0.15s ease;
+    }
+    #view-dev.rail-resizing #projects-rail { transition: none; }
+    #view-dev.rail-open #projects-rail {
+      width: var(--rail-width);
+      min-width: 180px;
+      max-width: 480px;
+      border-right: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .rail-tree-host {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #split-handle {
+      display: none;
+      flex-shrink: 0;
+      width: 5px;
+      cursor: col-resize;
+      background: var(--border);
+      touch-action: none;
+    }
+    #view-dev.rail-open #split-handle { display: block; }
+    #split-handle:hover,
+    #split-handle.dragging { background: var(--accent); }
+
+    #split-drag-shield {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      cursor: col-resize;
+    }
+    #split-drag-shield.active { display: block; }
+
+    .dev-main {
+      flex: 1;
+      min-width: 0;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    #dev-frame { flex: 1; width: 100%; min-height: 0; border: 0; }
+
+    #dlg-bug-report { max-width: 32rem; width: min(32rem, calc(100vw - 2rem)); }
+    #bug-report-env {
+      margin: 0 0 0.75rem;
+      padding: 0.55rem 0.65rem;
+      font: 0.75rem/1.4 ui-monospace, Consolas, monospace;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      white-space: pre-wrap;
+      max-height: 8rem;
+      overflow: auto;
+    }
+    #bug-report-description {
+      width: 100%;
+      min-height: 7rem;
+      resize: vertical;
+      box-sizing: border-box;
+      margin: 0.25rem 0 0.75rem;
+      padding: 0.5rem 0.6rem;
+      background: var(--input-bg, var(--bg));
+      color: inherit;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    dialog {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--card);
+      color: inherit;
+      padding: 1.25rem 1.35rem;
+      max-width: 28rem;
+      box-shadow:
+        0 16px 48px rgba(0, 0, 0, 0.45),
+        0 6px 18px rgba(0, 0, 0, 0.28);
+    }
+    dialog::backdrop {
+      background: rgba(0, 0, 0, 0.52);
+      backdrop-filter: blur(5px);
+    }
+    html[data-theme="light"] dialog::backdrop {
+      background: rgba(15, 16, 18, 0.38);
+    }
+    dialog h3 { margin: 0 0 0.65rem; font-size: 1.05rem; font-weight: 600; }
+    .dialog-message {
+      margin: 0 0 0.75rem;
+      font-size: 0.9rem;
+      line-height: 1.45;
+    }
+    .dialog-detail {
+      margin: 0 0 0.75rem;
+      font-size: 0.82rem;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+    dialog label { display: block; font-size: 0.85rem; margin: 0.6rem 0 0.25rem; }
+    dialog input, dialog select {
+      width: 100%;
+      padding: 0.4rem 0.5rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--input-bg);
+      color: inherit;
+      font: inherit;
+    }
+    .dialog-actions {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: flex-end;
+      margin-top: 1rem;
+    }
+    dialog button {
+      font: inherit;
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 0.4rem 0.75rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+    dialog button:hover { background: var(--surface-hover); }
+    dialog button:disabled {
+      opacity: 0.45;
+      cursor: default;
+    }
+    dialog button.primary {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+      color: var(--level-active-text);
+    }
+    dialog button.primary:hover { filter: brightness(1.06); }
+    dialog button.danger {
+      background: var(--danger-btn-bg);
+      border-color: var(--danger-btn-border);
+      color: var(--danger-btn-text);
+    }
+    dialog button.danger:hover { filter: brightness(1.08); }
+    #batch-candidate-list {
+      max-height: 16rem;
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.35rem 0.5rem;
+      margin-top: 0.5rem;
+      font-size: 0.82rem;
+    }
+    #batch-candidate-list label {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.45rem;
+      margin: 0.35rem 0;
+      cursor: pointer;
+    }
+    #batch-candidate-list .batch-meta { color: var(--muted); font-size: 0.75rem; }
+    #batch-candidate-list .batch-warn { color: var(--batch-warn-text); }
+    #batch-candidate-list .batch-skip { color: var(--muted); text-decoration: line-through; }
+    .batch-toolbar { display: flex; gap: 0.45rem; flex-wrap: wrap; margin-top: 0.5rem; }
+  </style>
+</head>
+<body>
+  <div id="view-picker" class="active">
+    <div class="picker-header">
+      <div class="picker-title-row">
+        <img class="picker-mark" src="../icons/mark-64.png" alt="" />
+        <div class="picker-title-text">
+          <h1>Construct²</h1>
+          <p class="sub">Browse roots and recent projects in one tree — double-click to open.</p>
+        </div>
+        <button type="button" class="ghost" data-open-help data-help-rel="docs/user/README.md">Help</button>
+        <button type="button" class="ghost" data-open-about>About</button>
+      </div>
+    </div>
+    <p id="status" class="status"></p>
+    <div class="picker-body picker-body--tree">
+      <div class="tree-panel" id="tree-panel-start">
+        <div class="tree-host" id="project-tree-start"></div>
+      </div>
+      <aside class="details-panel" id="project-details" aria-label="Project details"></aside>
+    </div>
+    <p class="foot">Double-click a project to open. Close from the dev UI to return here.</p>
+  </div>
+
+  <div id="tree-actions" class="tree-actions" aria-label="Project actions">
+    <button type="button" id="btn-new">New…</button>
+    <button type="button" id="btn-duplicate" hidden title="Copy to your projects and open">Duplicate</button>
+    <button type="button" id="btn-import">Import…</button>
+    <button type="button" id="btn-batch-import">Batch…</button>
+    <button type="button" id="btn-add-root">Add root…</button>
+    <button type="button" id="btn-bug-report">Report bug…</button>
+    <button type="button" data-open-about>About</button>
+  </div>
+
+  <div id="view-dev" aria-hidden="true">
+    <div id="split-drag-shield" aria-hidden="true"></div>
+    <div class="dev-split" id="dev-split">
+      <aside id="projects-rail" aria-label="Projects">
+        <div id="project-tree-rail" class="rail-tree-host"></div>
+      </aside>
+      <div id="split-handle" role="separator" aria-orientation="vertical" aria-label="Resize projects panel"></div>
+      <div class="dev-main">
+        <iframe id="dev-frame" title="Construct² Dev UI" src="about:blank" allow="microphone"></iframe>
+      </div>
+    </div>
+  </div>
+
+  <dialog id="dlg-new">
+    <form method="dialog" id="form-new">
+      <h3>New project</h3>
+      <label>Name <input name="name" required placeholder="My Piece" /></label>
+      <label>Target root <select name="rootId" id="new-root-select"></select></label>
+      <label>Template <select name="templateId" id="new-template-select"></select></label>
+      <div class="dialog-actions">
+        <button type="button" id="new-cancel">Cancel</button>
+        <button type="submit" class="primary">Create</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-import">
+    <form method="dialog" id="form-import">
+      <h3>Import legacy project</h3>
+      <label>Legacy folder or *_data.json
+        <input name="path" id="import-path" required placeholder="path/to/legacy-project" />
+      </label>
+      <button type="button" id="import-browse" style="margin-top:0.35rem">Browse folder…</button>
+      <label>Target root <select name="rootId" id="import-root-select"></select></label>
+      <label>Folder name (optional) <input name="slug" placeholder="auto from legacy name" /></label>
+      <p id="import-preview" class="sub" style="margin-top:0.5rem; white-space:pre-line"></p>
+      <div class="dialog-actions">
+        <button type="button" id="import-preview-btn">Preview</button>
+        <button type="button" id="import-cancel">Cancel</button>
+        <button type="submit" class="primary">Import</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-batch-import">
+    <form method="dialog" id="form-batch-import">
+      <h3>Batch import legacy</h3>
+      <label>Legacy root
+        <input name="legacyRoot" id="batch-legacy-root" required placeholder="C:\dev\genart\art-legacy" />
+      </label>
+      <button type="button" id="batch-browse" style="margin-top:0.35rem">Browse folder…</button>
+      <label>Target root <select name="rootId" id="batch-root-select"></select></label>
+      <div class="batch-toolbar">
+        <button type="button" id="batch-scan">Scan</button>
+        <button type="button" id="batch-select-all">Select all</button>
+        <button type="button" id="batch-select-none">Select none</button>
+      </div>
+      <div id="batch-candidate-list"></div>
+      <p id="batch-summary" class="sub" style="margin-top:0.5rem"></p>
+      <div class="dialog-actions">
+        <button type="button" id="batch-cancel">Cancel</button>
+        <button type="submit" class="primary" id="batch-import-btn" disabled>Import selected</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-about">
+    <img class="about-mark" src="../icons/about-256.png" alt="Construct²" />
+    <h3>About Construct²</h3>
+    <p id="about-version">Construct²</p>
+    <p class="about-lead">Out of the ashes of Blockgen Art comes Construct².</p>
+    <p class="about-copy">This standalone app replaces the old online Construct platform, and ships with the latest Canvas Core — a compact generative-art engine (CCv3) by Charles Machin (CM GenArt).</p>
+    <p class="about-close">Keep building your mind. Keep making wonders.</p>
+    <div class="dialog-actions">
+      <button type="button" data-open-help data-help-rel="docs/user/GETTING-STARTED.md">Getting Started</button>
+      <button type="button" class="primary" id="about-close">Close</button>
+    </div>
+  </dialog>
+
+  <dialog id="dlg-bug-report">
+    <h3>Report a bug</h3>
+    <p class="sub">Opens a GitHub issue draft in your browser. No account token is stored.</p>
+    <pre id="bug-report-env">Loading…</pre>
+    <label>What happened
+      <textarea id="bug-report-description" required placeholder="What you did, what you expected, what you got."></textarea>
+    </label>
+    <div class="dialog-actions">
+      <button type="button" id="bug-report-cancel">Cancel</button>
+      <button type="button" id="bug-report-submit" class="primary">Open GitHub</button>
+    </div>
+  </dialog>
+
+  <dialog id="dlg-confirm">
+    <h3 id="dlg-confirm-title">Confirm</h3>
+    <p id="dlg-confirm-message" class="dialog-message"></p>
+    <p id="dlg-confirm-detail" class="dialog-detail" hidden></p>
+    <div class="dialog-actions">
+      <button type="button" id="dlg-confirm-cancel">Cancel</button>
+      <button type="button" id="dlg-confirm-ok" class="primary">OK</button>
+    </div>
+  </dialog>
+
+  <div id="doc-viewer-back" hidden aria-hidden="true">
+    <div id="doc-viewer" role="dialog" aria-labelledby="doc-viewer-title">
+      <div class="doc-viewer-head">
+        <h2 id="doc-viewer-title">Documentation</h2>
+        <div class="doc-viewer-head-actions">
+          <button type="button" id="doc-viewer-back-btn" disabled title="Previous document">Back</button>
+          <button type="button" id="doc-viewer-close">Close</button>
+        </div>
+      </div>
+      <div id="doc-viewer-body" class="thin-scroll"></div>
+    </div>
+  </div>
+
+  <script src="../../vendor/markdown-it.min.js"></script>
+  <script src="../../doc_viewer.js"></script>
+  <script src="../../project_search.js"></script>
+  <script src="app_dialog.js"></script>
+  <script src="project_tree.js"></script>
+  <script src="project_details.js"></script>
+  <script src="bug_report.js"></script>
+  <script src="about.js"></script>
+  <script src="help.js"></script>
+  <script>
+    (async function () {
+      const api = window.advBuilder;
+      if (!api || !api.getDevServerOrigin) {
+        document.getElementById("status").textContent = "Preload outdated — restart Electron.";
+        return;
+      }
+
+      const DEV_ORIGIN = await api.getDevServerOrigin();
+      const status = document.getElementById("status");
+      const viewPicker = document.getElementById("view-picker");
+      const viewDev = document.getElementById("view-dev");
+      const devFrame = document.getElementById("dev-frame");
+      const splitHandle = document.getElementById("split-handle");
+      const splitDragShield = document.getElementById("split-drag-shield");
+      const projectsRail = document.getElementById("projects-rail");
+      const treePanelStart = document.getElementById("tree-panel-start");
+      const treeActions = document.getElementById("tree-actions");
+
+      let currentSelection = await api.getSelectedProject();
+      let workspace = await api.getWorkspace();
+      let listData = { roots: [] };
+      let expandedRootId =
+        workspace.expandedRootId || workspace.lastSelected?.rootId || null;
+      let devIsOpen = false;
+      /** Bumped on each dev open; stale async results are ignored. */
+      let devOpenGen = 0;
+      let treeStart = null;
+      let treeRail = null;
+      let projectDetails = null;
+
+      function embedDevUrl(base) {
+        const root = base || DEV_ORIGIN + "/";
+        try {
+          const u = new URL(root);
+          u.searchParams.set("embed", "1");
+          u.searchParams.set("_sw", String(Date.now()));
+          return u.href;
+        } catch (_) {
+          const sep = root.includes("?") ? "&" : "?";
+          return root + sep + "embed=1&_sw=" + Date.now();
+        }
+      }
+
+      const RAIL_MIN = 180;
+      const RAIL_MAX = 480;
+      const THEME_STORAGE_KEY = "advBuilder.theme";
+      const PALETTE_STORAGE_KEY = "advBuilder.palette";
+
+      function normalizePalette(palette) {
+        if (!palette || palette === "default") return "default";
+        if (palette === "nord") return "nord";
+        if (/^nord-\d+$/.test(palette)) {
+          const n = parseInt(palette.slice(5), 10);
+          if (n >= 1 && n <= 10) return "nord-" + n;
+        }
+        return "default";
+      }
+
+      function readStoredPalette() {
+        try {
+          return normalizePalette(localStorage.getItem(PALETTE_STORAGE_KEY) || "default");
+        } catch (_) {
+          return "default";
+        }
+      }
+      let railWidth = Math.min(
+        RAIL_MAX,
+        Math.max(RAIL_MIN, parseInt(localStorage.getItem("construct2-rail-width") || "260", 10)),
+      );
+
+      function applyRailWidth() {
+        document.documentElement.style.setProperty("--rail-width", railWidth + "px");
+        if (viewDev.classList.contains("rail-open")) {
+          projectsRail.style.width = railWidth + "px";
+        }
+      }
+
+      function mountTreeActions(parent) {
+        if (parent && treeActions.parentElement !== parent) {
+          parent.appendChild(treeActions);
+        }
+      }
+
+      function setStatusSummary() {
+        const total = listData.roots.reduce((n, r) => n + r.projects.length, 0);
+        status.className = "status ok";
+        status.textContent =
+          total + " project(s) across " + listData.roots.length + " root(s).";
+      }
+
+      function applyShellTheme(theme, palette) {
+        const t = theme === "dark" ? "dark" : "light";
+        const p = normalizePalette(palette != null ? palette : readStoredPalette());
+        document.documentElement.dataset.palette = p;
+        document.documentElement.dataset.theme = p !== "default" ? "dark" : t;
+        try {
+          localStorage.setItem(THEME_STORAGE_KEY, t);
+          localStorage.setItem(PALETTE_STORAGE_KEY, p);
+        } catch (_) {}
+      }
+
+      function notifyDevTheme() {
+        try {
+          const theme = localStorage.getItem(THEME_STORAGE_KEY) || "light";
+          const palette = readStoredPalette();
+          devFrame.contentWindow?.postMessage(
+            { type: "advBuilder:theme", theme, palette },
+            DEV_ORIGIN,
+          );
+        } catch (_) {}
+      }
+
+      function notifyRailState(open) {
+        try {
+          devFrame.contentWindow?.postMessage(
+            { type: "advBuilder:projectsRailState", open: !!open },
+            DEV_ORIGIN,
+          );
+        } catch (_) {}
+      }
+
+      function onDevFrameReady() {
+        notifyRailState(viewDev.classList.contains("rail-open"));
+        notifyDevTheme();
+        notifyProjectFlags();
+      }
+
+      function clearRailInlineSize() {
+        projectsRail.style.width = "";
+        projectsRail.style.minWidth = "";
+        projectsRail.style.maxWidth = "";
+      }
+
+      function showOpenWarnings(r) {
+        const parts = [];
+        if (r.needsReview) parts.push("Manual review recommended");
+        if (r.warnings?.length) parts.push(...r.warnings);
+        if (!parts.length) return;
+        status.className = "status warn";
+        status.textContent = parts.join(" · ");
+      }
+
+      async function restoreAppFocus() {
+        splitDragShield.classList.remove("active");
+        devFrame.style.pointerEvents = "";
+        const active = document.activeElement;
+        if (
+          active &&
+          active !== document.body &&
+          (active === devFrame ||
+            (active.closest?.("#view-dev") &&
+              !viewDev.classList.contains("active")) ||
+            (active.closest?.("#view-picker") &&
+              !viewPicker.classList.contains("active")))
+        ) {
+          document.body.focus();
+        }
+        for (let attempt = 0; attempt < 4; attempt++) {
+          await api.focusWindow();
+          if (document.hasFocus()) break;
+          await new Promise((r) => setTimeout(r, attempt < 2 ? 0 : 20));
+        }
+        treeStart?._ensureSearchInteractive?.();
+        treeRail?._ensureSearchInteractive?.();
+      }
+
+      function releaseShellFocus() {
+        void restoreAppFocus();
+      }
+
+      function syncProjectTreeScroll(fromTree, toTree) {
+        fromTree?.captureScrollPosition();
+        toTree?.applyScrollPosition();
+      }
+
+      function showPicker() {
+        syncProjectTreeScroll(treeRail, treeStart);
+        devIsOpen = false;
+        viewDev.classList.remove("active", "rail-open", "rail-resizing");
+        viewDev.setAttribute("aria-hidden", "true");
+        clearRailInlineSize();
+        viewPicker.classList.add("active");
+        viewPicker.setAttribute("aria-hidden", "false");
+        devFrame.src = "about:blank";
+        mountTreeActions(treePanelStart);
+        setStatusSummary();
+        api.setWindowTitle?.({ title: "Construct²" });
+        requestAnimationFrame(() => releaseShellFocus());
+      }
+
+      function showDev(url) {
+        syncProjectTreeScroll(treeStart, treeRail);
+        if (treeRail) {
+          treeRail.setDataQuiet({
+            listData,
+            workspace,
+            expandedRootId,
+            selectedPath: currentSelection?.path || null,
+          });
+          treeRail.render();
+          treeRail.applyScrollPosition();
+        }
+        devIsOpen = true;
+        viewPicker.classList.remove("active");
+        viewPicker.setAttribute("aria-hidden", "true");
+        viewDev.classList.add("active");
+        viewDev.classList.remove("rail-open", "rail-resizing");
+        viewDev.setAttribute("aria-hidden", "false");
+        clearRailInlineSize();
+        mountTreeActions(projectsRail);
+        notifyRailState(false);
+        devFrame.src = embedDevUrl(url);
+        devFrame.addEventListener("load", onDevFrameReady, { once: true });
+        requestAnimationFrame(() => releaseShellFocus());
+      }
+
+      function toggleRail(force) {
+        const open = typeof force === "boolean"
+          ? force
+          : !viewDev.classList.contains("rail-open");
+        viewDev.classList.toggle("rail-open", open);
+        if (open) {
+          applyRailWidth();
+          const applyScroll = () => treeRail?.applyScrollPosition();
+          requestAnimationFrame(() => requestAnimationFrame(applyScroll));
+          projectsRail.addEventListener("transitionend", applyScroll, { once: true });
+          requestAnimationFrame(() => releaseShellFocus());
+        } else {
+          clearRailInlineSize();
+        }
+        notifyRailState(open);
+        return open;
+      }
+
+      function setupSplitDrag() {
+        let dragging = false;
+        let startX = 0;
+        let startW = 0;
+
+        const endDrag = () => {
+          if (!dragging) return;
+          dragging = false;
+          splitHandle.classList.remove("dragging");
+          viewDev.classList.remove("rail-resizing");
+          splitDragShield.classList.remove("active");
+          devFrame.style.pointerEvents = "";
+          localStorage.setItem("construct2-rail-width", String(railWidth));
+        };
+
+        const onMove = (ev) => {
+          if (!dragging) return;
+          ev.preventDefault();
+          railWidth = Math.min(RAIL_MAX, Math.max(RAIL_MIN, startW + ev.clientX - startX));
+          projectsRail.style.width = railWidth + "px";
+          document.documentElement.style.setProperty("--rail-width", railWidth + "px");
+        };
+
+        splitHandle.addEventListener("pointerdown", (e) => {
+          if (!viewDev.classList.contains("rail-open")) return;
+          e.preventDefault();
+          dragging = true;
+          startX = e.clientX;
+          startW = railWidth;
+          splitHandle.classList.add("dragging");
+          viewDev.classList.add("rail-resizing");
+          splitDragShield.classList.add("active");
+          devFrame.style.pointerEvents = "none";
+          splitHandle.setPointerCapture(e.pointerId);
+        });
+
+        splitHandle.addEventListener("pointermove", onMove);
+        splitHandle.addEventListener("pointerup", endDrag);
+        splitHandle.addEventListener("pointercancel", endDrag);
+        splitDragShield.addEventListener("pointermove", onMove);
+        splitDragShield.addEventListener("pointerup", endDrag);
+        splitDragShield.addEventListener("pointercancel", endDrag);
+      }
+
+      function writableRoots() {
+        return (workspace.roots || []).filter((r) => r.enabled && !r.readOnly);
+      }
+
+      function selectionRoot() {
+        const id = currentSelection?.rootId;
+        if (id) {
+          const byId = (workspace.roots || []).find((r) => r.id === id);
+          if (byId) return byId;
+        }
+        const projectPath = String(currentSelection?.path || "")
+          .replace(/\\/g, "/")
+          .toLowerCase();
+        if (!projectPath) return null;
+        return (
+          (workspace.roots || []).find((r) => {
+            const root = String(r.path || "")
+              .replace(/\\/g, "/")
+              .toLowerCase();
+            return (
+              root &&
+              (projectPath === root || projectPath.startsWith(root + "/"))
+            );
+          }) || null
+        );
+      }
+
+      function selectionIsReadOnly() {
+        return !!selectionRoot()?.readOnly;
+      }
+
+      function updateDuplicateAction() {
+        const btn = document.getElementById("btn-duplicate");
+        if (!btn) return;
+        const show = !!(currentSelection?.path && selectionIsReadOnly());
+        btn.hidden = !show;
+      }
+
+      function notifyProjectFlags() {
+        try {
+          devFrame.contentWindow?.postMessage(
+            { type: "advBuilder:projectFlags", readOnly: selectionIsReadOnly() },
+            DEV_ORIGIN,
+          );
+        } catch (_) {}
+      }
+
+      async function duplicateSelectedAndOpen(sourcePath) {
+        const from = sourcePath || currentSelection?.path;
+        if (!from) return false;
+        status.className = "status";
+        status.textContent = "Duplicating…";
+        const r = await api.duplicateProject({ sourcePath: from });
+        if (!r.ok) {
+          status.className = "status err";
+          status.textContent = r.error || "Duplicate failed";
+          return false;
+        }
+        await refreshList();
+        await persistExpandedRoot(r.rootId);
+        const selected = await selectProject(
+          { name: r.name, path: r.path, kind: r.kind },
+          r.rootId,
+        );
+        if (!selected) return false;
+        status.className = "status ok";
+        status.textContent = "Duplicated as " + r.name;
+        return openDevFromSelection();
+      }
+
+      function fillRootSelects() {
+        for (const sel of [
+          document.getElementById("new-root-select"),
+          document.getElementById("import-root-select"),
+          document.getElementById("batch-root-select"),
+        ]) {
+          sel.replaceChildren();
+          for (const r of writableRoots()) {
+            const opt = document.createElement("option");
+            opt.value = r.id;
+            opt.textContent = r.label;
+            sel.appendChild(opt);
+          }
+        }
+      }
+
+      async function loadTemplates() {
+        const r = await api.listTemplates();
+        const sel = document.getElementById("new-template-select");
+        sel.replaceChildren();
+        if (r.ok && r.manifest?.templates) {
+          for (const t of r.manifest.templates) {
+            const opt = document.createElement("option");
+            opt.value = t.id;
+            opt.textContent = t.label;
+            sel.appendChild(opt);
+          }
+        }
+      }
+
+      async function persistExpandedRoot(rootId) {
+        expandedRootId = rootId;
+        workspace.expandedRootId = rootId;
+        await api.patchWorkspace({ expandedRootId: rootId });
+        if (treeStart) treeStart.setExpandedRoot(rootId);
+        if (treeRail) treeRail.setExpandedRoot(rootId);
+      }
+
+      function syncTrees(opts = {}) {
+        const path = currentSelection?.path || null;
+        if (opts.selectionOnly) {
+          treeStart?.setSelection(path);
+          treeRail?.setSelection(path);
+          return;
+        }
+        const data = {
+          listData,
+          workspace,
+          expandedRootId,
+          selectedPath: path,
+        };
+        treeStart?.captureScrollPosition();
+        treeStart?.setData(data);
+        if (devIsOpen) {
+          treeRail?.setData(data);
+        } else {
+          treeRail?.setDataQuiet(data);
+        }
+      }
+
+      function pathsEqual(a, b) {
+        return (
+          String(a || "")
+            .replace(/\\/g, "/")
+            .toLowerCase() ===
+          String(b || "")
+            .replace(/\\/g, "/")
+            .toLowerCase()
+        );
+      }
+
+      async function refreshProjectDetailsForPath(projectPath) {
+        if (
+          !projectPath ||
+          !projectDetails?.currentPath ||
+          !pathsEqual(projectDetails.currentPath, projectPath)
+        ) {
+          return;
+        }
+        await projectDetails.refresh();
+      }
+
+      async function handleTreeContextAction(action, ctx) {
+        try {
+          switch (action) {
+            case "open-dev": {
+              await selectProject(ctx.project, ctx.rootId);
+              if (devIsOpen) await openDevForCurrent();
+              else await openDevFromSelection();
+              break;
+            }
+            case "duplicate": {
+              await selectProject(ctx.project, ctx.rootId);
+              await duplicateSelectedAndOpen(ctx.path);
+              break;
+            }
+            case "open-explorer":
+              if (ctx.root && !ctx.project) {
+                await api.revealRootInExplorer({ rootId: ctx.rootId });
+              } else {
+                await api.revealInExplorer({ path: ctx.path });
+              }
+              break;
+            case "open-output": {
+              const r = await api.openProjectOutput({ path: ctx.path });
+              if (!r.ok) {
+                status.className = "status err";
+                status.textContent = r.error || "No build output to open";
+              }
+              break;
+            }
+            case "open-legacy-browser":
+              await api.openLegacyBrowser({ path: ctx.path });
+              break;
+            case "reconvert-legacy": {
+              const confirmRes = await showAppConfirm({
+                title: "Re-convert legacy project",
+                message:
+                  "Re-convert from legacy data? Generated source files will be overwritten. Existing collections will be rebuilt as a single collection from legacy data. Values, Properties, and params in dev.json are preserved.",
+                okLabel: "Re-convert",
+                cancelLabel: "Cancel",
+              });
+              if (!confirmRes?.confirmed) {
+                return;
+              }
+              await restoreAppFocus();
+              status.textContent = "Re-converting…";
+              const r = await api.reconvertLegacyProject({ path: ctx.path });
+              if (r.ok) {
+                status.className = "status ok";
+                status.textContent = "Re-converted " + (ctx.project?.name || "");
+                await refreshList();
+                await refreshProjectDetailsForPath(ctx.path);
+                await restoreAppFocus();
+              } else {
+                status.className = "status err";
+                status.textContent = r.error || "Re-convert failed";
+              }
+              break;
+            }
+            case "pin": {
+              const r = await api.pinProject({
+                path: ctx.path,
+                name: ctx.project?.name,
+                rootId: ctx.rootId,
+              });
+              if (r.ok) {
+                workspace = r.workspace || (await api.getWorkspace());
+                syncTrees();
+                projectDetails?.show(currentSelection, currentSelection?.rootId);
+              }
+              break;
+            }
+            case "unpin": {
+              const r = await api.unpinProject({
+                path: ctx.path,
+                rootId: ctx.rootId,
+              });
+              if (r.ok) {
+                workspace = r.workspace || (await api.getWorkspace());
+                syncTrees();
+                projectDetails?.show(currentSelection, currentSelection?.rootId);
+              }
+              break;
+            }
+            case "remove-root": {
+              const confirmRes = await showAppConfirm({
+                title: "Remove root",
+                message:
+                  "Remove '" +
+                  (ctx.rootLabel || ctx.rootId) +
+                  "' from workspace?",
+                detail: "Folders on disk are not deleted.",
+                okLabel: "Remove",
+                danger: true,
+              });
+              if (!confirmRes?.confirmed) {
+                return;
+              }
+              const r = await api.removeWorkspaceRoot({ rootId: ctx.rootId });
+              if (r.ok) {
+                workspace = r.workspace;
+                if (expandedRootId === ctx.rootId) expandedRootId = null;
+                await refreshList();
+              } else {
+                status.className = "status err";
+                status.textContent = r.error || "Remove root failed";
+              }
+              break;
+            }
+            case "enable-write": {
+              const r = await api.enableRootWrite({ rootId: ctx.rootId });
+              if (r.ok) {
+                workspace = r.workspace;
+                await refreshList();
+                status.className = "status ok";
+                status.textContent = "Write enabled on " + (ctx.rootLabel || "root");
+              } else {
+                status.className = "status err";
+                status.textContent = r.error || "Enable write failed";
+              }
+              break;
+            }
+            case "convert-all-legacy": {
+              const confirmRes = await showAppConfirm({
+                title: "Convert all legacy",
+                message:
+                  "Convert all legacy projects in " +
+                  (ctx.rootLabel || "this root") +
+                  "?",
+                detail: "Existing upgrades will be refreshed.",
+                okLabel: "Convert all",
+              });
+              if (!confirmRes?.confirmed) {
+                return;
+              }
+              status.textContent = "Converting legacy projects…";
+              const r = await api.convertAllLegacyInRoot({ rootId: ctx.rootId });
+              status.className = r.ok ? "status ok" : "status err";
+              status.textContent =
+                "Convert all: " +
+                r.converted +
+                " ok, " +
+                r.failed +
+                " failed (" +
+                r.total +
+                " total)";
+              await refreshList();
+              break;
+            }
+            default:
+              break;
+          }
+        } catch (e) {
+          status.className = "status err";
+          status.textContent = String(e.message || e);
+        } finally {
+          await restoreAppFocus();
+        }
+      }
+
+      async function handleTreeDrop(payload) {
+        const { sourcePath, zone, rootId, valid } = payload;
+        if (!sourcePath) return;
+
+        const probe = await api.probeDropFolder({ path: sourcePath });
+        if (!probe.ok || !probe.valid) {
+          status.className = "status err";
+          status.textContent = "Not a project folder — drop a Construct² or legacy project directory.";
+          return;
+        }
+
+        if (zone === "invalid" || valid === false) {
+          status.className = "status err";
+          status.textContent = "Cannot drop on that target.";
+          return;
+        }
+
+        if (zone === "add-root" || !rootId) {
+          status.textContent = "Adding root…";
+          const r = await api.addWorkspaceRoot({
+            path: sourcePath,
+            setExpanded: true,
+          });
+          if (r.ok) {
+            workspace = r.workspace;
+            expandedRootId = r.root.id;
+            await refreshList();
+            status.className = "status ok";
+            status.textContent = "Added root.";
+          } else {
+            status.className = "status err";
+            status.textContent = r.error || "Add root failed";
+          }
+          return;
+        }
+
+        status.textContent = "Copying project…";
+        let r = await api.importProjectFolder({
+          sourcePath,
+          rootId,
+          onCollision: "error",
+        });
+        if (r.code === "COLLISION") {
+          const renameRes = await showAppConfirm({
+            title: "Name already exists",
+            message: "A project with that name already exists.",
+            detail: "Create a renamed copy?",
+            okLabel: "Rename copy",
+          });
+          if (!renameRes?.confirmed) {
+            status.textContent = "Import skipped.";
+            return;
+          }
+          r = await api.importProjectFolder({
+            sourcePath,
+            rootId,
+            onCollision: "rename",
+          });
+        }
+        if (r.ok && !r.skipped) {
+          await refreshList();
+          await persistExpandedRoot(rootId);
+          await selectProject(
+            { name: r.name, path: r.path, kind: r.kind },
+            rootId,
+          );
+          status.className = "status ok";
+          status.textContent = "Copied to " + (payload.rootLabel || "root");
+        } else if (r.skipped) {
+          status.textContent = "Import skipped — already exists.";
+        } else {
+          status.className = "status err";
+          status.textContent = r.error || "Import failed";
+        }
+      }
+
+      function initTrees() {
+        const expandHandler = (rootId) => persistExpandedRoot(rootId);
+
+        projectDetails = new ProjectDetailsPanel(
+          document.getElementById("project-details"),
+          api,
+          () => workspace,
+          async () => {
+            workspace = await api.getWorkspace();
+            syncTrees();
+          },
+          async () => {
+            await openDevFromSelection();
+          },
+          async (ctx) => {
+            await duplicateSelectedAndOpen(ctx?.path);
+          },
+        );
+
+        treeStart = new ProjectTree(
+          document.getElementById("project-tree-start"),
+          {
+            mode: "start",
+            api,
+            onContextAction: handleTreeContextAction,
+            onDrop: handleTreeDrop,
+            onSelect: (p, rootId) => selectProject(p, rootId),
+            onOpenProject: async (p, rootId) => {
+              await selectProject(p, rootId);
+              await openDevFromSelection();
+            },
+            onExpandChange: expandHandler,
+          },
+        );
+
+        treeRail = new ProjectTree(document.getElementById("project-tree-rail"), {
+          mode: "dev",
+          api,
+          onContextAction: handleTreeContextAction,
+          onDrop: handleTreeDrop,
+          onOpenProject: (p, rootId) =>
+            selectProject(p, rootId, { openDev: true }),
+          onExpandChange: expandHandler,
+        });
+
+        syncTrees();
+      }
+
+      async function selectProject(p, rootId, opts = {}) {
+        const r = await api.setSelectedProject({
+          name: p.name,
+          path: p.path,
+          rootId: rootId || null,
+        });
+        if (!r.ok) {
+          status.className = "status err";
+          status.textContent = r.error || "Select failed";
+          return false;
+        }
+        currentSelection = {
+          ...p,
+          name: r.project.name,
+          path: r.project.path,
+          rootId: rootId || r.project.rootId || null,
+        };
+        syncTrees({ selectionOnly: true });
+        updateDuplicateAction();
+        if (opts.openDev && devIsOpen) {
+          return openDevForCurrent();
+        }
+        if (!devIsOpen) {
+          status.className = "status ok";
+          status.textContent = "Selected: " + p.name;
+          projectDetails?.show(currentSelection, currentSelection.rootId);
+        }
+        return true;
+      }
+
+      async function handleReadOnlyLegacy(r, openPath) {
+        const msg =
+          r.error ||
+          "This legacy project is in a read-only root.";
+
+        if (r.convertedPath) {
+          const openCopyRes = await showAppConfirm({
+            title: "Read-only legacy",
+            message: msg,
+            detail: "An upgraded copy already exists. Open that copy instead?",
+            okLabel: "Open copy",
+          });
+          if (openCopyRes?.confirmed) {
+            return openPath(r.convertedPath);
+          }
+        }
+
+        const enableWriteRes = await showAppConfirm({
+          title: "Read-only legacy",
+          message: msg,
+          detail: "Enable write on this root and upgrade in place?",
+          okLabel: "Enable write",
+        });
+        if (enableWriteRes?.confirmed) {
+          const ew = await api.enableRootWrite({ rootId: r.rootId });
+          if (ew.ok) {
+            workspace = ew.workspace;
+            await refreshList();
+            return openPath(currentSelection?.path || r.path);
+          }
+          status.className = "status err";
+          status.textContent = ew.error || "Enable write failed";
+          return false;
+        }
+
+        const ws = await api.getWorkspace();
+        const writable = (ws.roots || []).find((rt) => rt.enabled && !rt.readOnly);
+        if (!writable) {
+          status.className = "status err";
+          status.textContent = "No writable root available to copy into.";
+          return false;
+        }
+
+        const copyRes = await showAppConfirm({
+          title: "Copy to writable root",
+          message:
+            "Copy this project to " +
+            (writable.label || writable.id) +
+            " and open there?",
+          okLabel: "Copy and open",
+        });
+        if (!copyRes?.confirmed) return false;
+
+        let imp = await api.importProjectFolder({
+          sourcePath: r.path,
+          rootId: writable.id,
+          onCollision: "error",
+        });
+        if (imp.code === "COLLISION") {
+          const renameRes = await showAppConfirm({
+            title: "Name already exists",
+            message: "A project with that name already exists.",
+            detail: "Create a renamed copy?",
+            okLabel: "Rename copy",
+          });
+          if (!renameRes?.confirmed) {
+            return false;
+          }
+          imp = await api.importProjectFolder({
+            sourcePath: r.path,
+            rootId: writable.id,
+            onCollision: "rename",
+          });
+        }
+        if (!imp.ok) {
+          status.className = "status err";
+          status.textContent = imp.error || "Copy failed";
+          return false;
+        }
+
+        await refreshList();
+        await selectProject(
+          { name: imp.name, path: imp.path, kind: imp.kind },
+          writable.id,
+        );
+        return openPath(imp.path);
+      }
+
+      async function openDevFromSelection() {
+        if (!currentSelection) return false;
+        const gen = ++devOpenGen;
+        const isLegacy =
+          currentSelection.kind === "legacy" || currentSelection.flags?.legacy;
+        status.textContent = isLegacy
+          ? "Converting " + currentSelection.name + "…"
+          : "Starting " + currentSelection.name + "…";
+        const tryOpen = async (projectPath) =>
+          api.startDevUi({ projectPath: projectPath || currentSelection.path });
+        const r = await tryOpen(currentSelection.path);
+        if (gen !== devOpenGen) return false;
+        if (r.ok) {
+          if (r.converted) await refreshList();
+          if (gen !== devOpenGen) return false;
+          showOpenWarnings(r);
+          showDev(r.url || DEV_ORIGIN + "/?embed=1");
+          return true;
+        }
+        if (r.code === "READ_ONLY_LEGACY") {
+          const handled = await handleReadOnlyLegacy(r, tryOpen);
+          return gen === devOpenGen && handled;
+        }
+        status.className = "status err";
+        status.textContent = r.error || "Failed to start";
+        return false;
+      }
+
+      async function openDevForCurrent() {
+        if (!currentSelection) return false;
+        const gen = ++devOpenGen;
+        const isLegacy = currentSelection.kind === "legacy" || currentSelection.flags?.legacy;
+        status.textContent = isLegacy
+          ? "Converting " + currentSelection.name + "…"
+          : "Starting " + currentSelection.name + "…";
+        const tryOpen = async (projectPath) =>
+          api.startDevUi({ projectPath: projectPath || currentSelection.path });
+        const r = await tryOpen(currentSelection.path);
+        if (gen !== devOpenGen) return false;
+        if (r.ok) {
+          if (r.converted) {
+            status.className = "status ok";
+            status.textContent = "Upgraded " + currentSelection.name;
+            await refreshList();
+          } else {
+            showOpenWarnings(r);
+          }
+          if (gen !== devOpenGen) return false;
+          devFrame.src = embedDevUrl(r.url || DEV_ORIGIN + "/?embed=1");
+          devFrame.addEventListener("load", onDevFrameReady, { once: true });
+          return true;
+        }
+        if (r.code === "READ_ONLY_LEGACY") {
+          const handled = await handleReadOnlyLegacy(r, tryOpen);
+          return gen === devOpenGen && handled;
+        }
+        status.className = "status err";
+        status.textContent = r.error || "Failed to start";
+        return false;
+      }
+
+      async function refreshList() {
+        workspace = await api.getWorkspace();
+        expandedRootId =
+          workspace.expandedRootId || expandedRootId || null;
+        const res = await api.listProjects();
+        if (res.error) {
+          status.className = "status err";
+          status.textContent = res.error;
+          return;
+        }
+        listData = { roots: res.roots || [] };
+        if (!expandedRootId && listData.roots.length) {
+          expandedRootId = listData.roots[0].id;
+        }
+        if (!devIsOpen) setStatusSummary();
+        syncTrees();
+        fillRootSelects();
+        updateDuplicateAction();
+        requestAnimationFrame(() => releaseShellFocus());
+      }
+
+      window.addEventListener("message", (ev) => {
+        if (ev.origin !== DEV_ORIGIN) return;
+        const d = ev.data;
+        if (!d || !d.type) return;
+        if (d.type === "advBuilder:closeDev") {
+          api.stopDevUi().then(() => showPicker());
+          return;
+        }
+        if (d.type === "advBuilder:toggleProjectsRail") {
+          toggleRail();
+          return;
+        }
+        if (d.type === "advBuilder:revealProjectFolder") {
+          if (currentSelection?.path) {
+            api.revealInExplorer({ path: currentSelection.path, mode: "folder" });
+          }
+          return;
+        }
+        if (d.type === "advBuilder:duplicateProject") {
+          void duplicateSelectedAndOpen(d.path || currentSelection?.path);
+          return;
+        }
+        if (d.type === "advBuilder:requestProjectFlags") {
+          notifyProjectFlags();
+          return;
+        }
+        if (d.type === "advBuilder:revealPath" && d.path) {
+          api.revealInExplorer({ path: d.path, mode: "folder" });
+          return;
+        }
+        if (d.type === "advBuilder:themeChange") {
+          applyShellTheme(d.theme, d.palette);
+          return;
+        }
+        if (d.type === "advBuilder:clipboard-read" && d.id) {
+          (async () => {
+            let payload = { type: "advBuilder:clipboard-result", id: d.id, ok: false };
+            try {
+              const text = await api.clipboardReadText();
+              payload = { type: "advBuilder:clipboard-result", id: d.id, ok: true, text };
+            } catch (e) { payload.error = String(e.message || e); }
+            ev.source?.postMessage(payload, ev.origin);
+          })();
+        }
+        if (d.type === "advBuilder:clipboard-write" && d.id) {
+          (async () => {
+            let payload = { type: "advBuilder:clipboard-result", id: d.id, ok: false };
+            try {
+              await api.clipboardWriteText(d.text);
+              payload = { type: "advBuilder:clipboard-result", id: d.id, ok: true };
+            } catch (e) { payload.error = String(e.message || e); }
+            ev.source?.postMessage(payload, ev.origin);
+          })();
+        }
+        if (d.type === "advBuilder:open-external" && d.url) {
+          api.openExternal?.(d.url).catch(() => window.open(d.url, "_blank"));
+        }
+        if (d.type === "advBuilder:platform-probe" && d.id) {
+          ev.source?.postMessage({ type: "advBuilder:platform-info", id: d.id, isElectron: true }, ev.origin);
+        }
+        if (d.type === "advBuilder:loadSecret" && d.id && d.name) {
+          (async () => {
+            let payload = { type: "advBuilder:secret-result", id: d.id, ok: false, value: null };
+            try {
+              const value = await api.loadSecret(d.name);
+              payload = { type: "advBuilder:secret-result", id: d.id, ok: true, value };
+            } catch (e) { payload.error = String(e.message || e); }
+            ev.source?.postMessage(payload, ev.origin);
+          })();
+        }
+        if (d.type === "advBuilder:storeSecret" && d.id && d.name) {
+          (async () => {
+            let payload = { type: "advBuilder:secret-result", id: d.id, ok: false };
+            try {
+              await api.storeSecret(d.name, d.value);
+              payload = { type: "advBuilder:secret-result", id: d.id, ok: true };
+            } catch (e) { payload.error = String(e.message || e); }
+            ev.source?.postMessage(payload, ev.origin);
+          })();
+        }
+      });
+
+      setupSplitDrag();
+      applyRailWidth();
+      function claimShellPointer(ev) {
+        if (ev.target.closest("#dev-frame")) return;
+        api.focusWindow?.();
+      }
+      treePanelStart.addEventListener("pointerdown", claimShellPointer, true);
+      projectsRail.addEventListener("pointerdown", claimShellPointer, true);
+      mountTreeActions(treePanelStart);
+
+      async function addRoot() {
+        const pick = await api.pickFolder();
+        if (!pick.ok || pick.cancelled) return;
+        const r = await api.addWorkspaceRoot({
+          path: pick.path,
+          setExpanded: true,
+        });
+        if (!r.ok) {
+          status.className = "status err";
+          status.textContent = r.error || "Add root failed";
+          return;
+        }
+        workspace = r.workspace;
+        expandedRootId = r.root.id;
+        await refreshList();
+      }
+
+      document.getElementById("btn-add-root").addEventListener("click", addRoot);
+
+      window.addEventListener("focus", () => {
+        void restoreAppFocus();
+        if (!devIsOpen) return;
+        try {
+          devFrame.contentWindow?.postMessage(
+            { type: "advBuilder:tryReconnect" },
+            DEV_ORIGIN,
+          );
+        } catch (_) {}
+      });
+
+      const dlgNew = document.getElementById("dlg-new");
+      const openNewDialog = () => dlgNew.showModal();
+      document.getElementById("btn-new").addEventListener("click", openNewDialog);
+      document.getElementById("btn-duplicate").addEventListener("click", () => {
+        void duplicateSelectedAndOpen();
+      });
+      document.getElementById("new-cancel").addEventListener("click", () => dlgNew.close());
+      document.getElementById("form-new").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const r = await api.createProject({
+          name: fd.get("name"),
+          rootId: fd.get("rootId"),
+          templateId: fd.get("templateId"),
+        });
+        dlgNew.close();
+        if (r.ok) {
+          await refreshList();
+          const rootId = fd.get("rootId");
+          if (rootId) await persistExpandedRoot(String(rootId));
+          await selectProject(
+            { name: r.project.name, path: r.project.path },
+            fd.get("rootId"),
+          );
+        } else {
+          status.className = "status err";
+          status.textContent = r.error || "Create failed";
+        }
+      });
+
+      const dlgImport = document.getElementById("dlg-import");
+      const openImportDialog = () => dlgImport.showModal();
+      document.getElementById("btn-import").addEventListener("click", openImportDialog);
+      document.getElementById("import-cancel").addEventListener("click", () => dlgImport.close());
+      document.getElementById("import-browse").addEventListener("click", async () => {
+        const pick = await api.pickFolder();
+        if (pick.ok && pick.path) document.getElementById("import-path").value = pick.path;
+      });
+      document.getElementById("import-preview-btn").addEventListener("click", async () => {
+        const path = document.getElementById("import-path").value.trim();
+        const r = await api.previewLegacyImport({ path });
+        const el = document.getElementById("import-preview");
+        if (r.ok) {
+          const lines = [
+            `typeid: ${r.report.typeid} → ${r.report.slug}`,
+            r.report.needsReview ? "⚠ manual review recommended" : null,
+            ...(r.report.warnings || []),
+          ].filter(Boolean);
+          el.textContent = lines.join("\n");
+        } else el.textContent = r.error || "Preview failed";
+      });
+      document.getElementById("form-import").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const r = await api.importLegacyProject({
+          path: fd.get("path"),
+          rootId: fd.get("rootId"),
+          name: fd.get("slug") || undefined,
+        });
+        dlgImport.close();
+        if (r.ok) {
+          await refreshList();
+          await selectProject(
+            { name: r.report.name, path: r.report.path },
+            fd.get("rootId"),
+          );
+        } else {
+          status.className = "status err";
+          status.textContent = r.error || "Import failed";
+        }
+      });
+
+      let batchCandidates = [];
+
+      function defaultLegacyRoot() {
+        const legacy = (workspace.roots || []).find((r) => r.id === "legacy" || r.readOnly);
+        return legacy?.path || "";
+      }
+
+      function renderBatchCandidates() {
+        const list = document.getElementById("batch-candidate-list");
+        const summary = document.getElementById("batch-summary");
+        const importBtn = document.getElementById("batch-import-btn");
+        list.replaceChildren();
+        if (!batchCandidates.length) {
+          summary.textContent = "Scan a legacy root to list importable projects.";
+          importBtn.disabled = true;
+          return;
+        }
+        let selectable = 0;
+        for (const c of batchCandidates) {
+          const label = document.createElement("label");
+          const cb = document.createElement("input");
+          cb.type = "checkbox";
+          cb.dataset.path = c.path;
+          const disabled = !c.ok || c.alreadyImported;
+          cb.disabled = disabled;
+          if (!disabled) {
+            cb.checked = true;
+            selectable += 1;
+          }
+          const text = document.createElement("span");
+          const title = document.createElement("div");
+          title.textContent = c.displayName || c.name || c.path;
+          if (c.alreadyImported) title.classList.add("batch-skip");
+          const meta = document.createElement("div");
+          meta.className = "batch-meta";
+          if (c.ok) {
+            meta.textContent = `${c.typeid} → ${c.slug}` + (c.needsReview ? " · review" : "");
+          } else {
+            meta.textContent = c.error || "Cannot preview";
+            meta.classList.add("batch-warn");
+          }
+          text.appendChild(title);
+          text.appendChild(meta);
+          if (c.warnings?.length) {
+            const warn = document.createElement("div");
+            warn.className = "batch-warn batch-meta";
+            warn.textContent = c.warnings.join(" ");
+            text.appendChild(warn);
+          }
+          label.appendChild(cb);
+          label.appendChild(text);
+          list.appendChild(label);
+        }
+        const reviewCount = batchCandidates.filter((c) => c.ok && c.needsReview).length;
+        summary.textContent =
+          `${batchCandidates.length} candidate(s), ${selectable} importable` +
+          (reviewCount ? `, ${reviewCount} need review` : "");
+        importBtn.disabled = selectable === 0;
+      }
+
+      function setBatchChecks(checked) {
+        for (const cb of document.querySelectorAll("#batch-candidate-list input[type=checkbox]")) {
+          if (!cb.disabled) cb.checked = checked;
+        }
+      }
+
+      const dlgBatch = document.getElementById("dlg-batch-import");
+      const openBatchDialog = () => {
+        document.getElementById("batch-legacy-root").value = defaultLegacyRoot();
+        batchCandidates = [];
+        renderBatchCandidates();
+        dlgBatch.showModal();
+      };
+      document.getElementById("btn-batch-import").addEventListener("click", openBatchDialog);
+      document.getElementById("batch-cancel").addEventListener("click", () => dlgBatch.close());
+      document.getElementById("batch-browse").addEventListener("click", async () => {
+        const pick = await api.pickFolder();
+        if (pick.ok && pick.path) document.getElementById("batch-legacy-root").value = pick.path;
+      });
+      document.getElementById("batch-scan").addEventListener("click", async () => {
+        const legacyRoot = document.getElementById("batch-legacy-root").value.trim();
+        const rootId = document.getElementById("batch-root-select").value;
+        const r = await api.listLegacyCandidates({ legacyRoot, rootId });
+        if (!r.ok) {
+          document.getElementById("batch-summary").textContent = r.error || "Scan failed";
+          batchCandidates = [];
+          renderBatchCandidates();
+          return;
+        }
+        batchCandidates = r.candidates || [];
+        renderBatchCandidates();
+      });
+      document.getElementById("batch-select-all").addEventListener("click", () => setBatchChecks(true));
+      document.getElementById("batch-select-none").addEventListener("click", () => setBatchChecks(false));
+      document.getElementById("form-batch-import").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const paths = [...document.querySelectorAll("#batch-candidate-list input[type=checkbox]:checked")]
+          .map((cb) => cb.dataset.path);
+        if (!paths.length) return;
+        const importBtn = document.getElementById("batch-import-btn");
+        importBtn.disabled = true;
+        document.getElementById("batch-summary").textContent = "Importing…";
+        const r = await api.batchImportLegacy({
+          legacyRoot: fd.get("legacyRoot"),
+          rootId: fd.get("rootId"),
+          paths,
+        });
+        dlgBatch.close();
+        if (r.ok) {
+          const rep = r.report;
+          await refreshList();
+          status.className = "status ok";
+          status.textContent =
+            `Batch import: ${rep.imported} imported, ${rep.skipped} skipped, ${rep.failed} failed`;
+        } else {
+          status.className = "status err";
+          status.textContent = r.error || "Batch import failed";
+        }
+      });
+
+      initTrees();
+      await loadTemplates();
+      await refreshList();
+      if (workspace.lastSelected?.path) {
+        currentSelection = workspace.lastSelected;
+        syncTrees();
+        updateDuplicateAction();
+        if (!devIsOpen) {
+          projectDetails?.show(currentSelection, currentSelection.rootId);
+        }
+      }
+    })();
+  </script>
+</body>
+</html>

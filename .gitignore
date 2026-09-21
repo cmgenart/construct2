@@ -1,0 +1,9 @@
+node_modules/
+dist/
+_test_parameters/
+_test_driver_store_project/
+_test_driver_store_userdata/
+docs/icons/png/
+docs/icons/preview/
+npm
+runtimes/legacy/

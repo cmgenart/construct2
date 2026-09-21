@@ -1,0 +1,63 @@
+/* Depth / elevation shadows — active when html.theme-depth */
+
+html.theme-depth body {
+  background: linear-gradient(168deg, var(--panel) 0%, color-mix(in srgb, var(--bg) 35%, var(--panel)) 100%);
+}
+
+html.theme-depth .dev-section {
+  box-shadow: var(--depth-shadow-md);
+  border-color: var(--border-strong);
+}
+
+html.theme-depth .dev-section-head {
+  box-shadow: var(--depth-highlight);
+}
+
+html.theme-depth .prop-group {
+  box-shadow: var(--depth-shadow-sm);
+  border-color: var(--border-strong);
+}
+
+html.theme-depth button,
+html.theme-depth .nudge,
+html.theme-depth .choice-container button,
+html.theme-depth .seed-control-btn,
+html.theme-depth .zoom-control-btn,
+html.theme-depth .values-level-btn,
+html.theme-depth .collection-tab,
+html.theme-depth .collection-tab-add,
+html.theme-depth #visselect label {
+  box-shadow: var(--depth-shadow-sm);
+}
+
+html.theme-depth button[type="submit"],
+html.theme-depth .btn-primary,
+html.theme-depth #btn-run {
+  box-shadow: var(--depth-shadow-sm), inset 0 1px 0 rgba(255,255,255,0.25);
+}
+
+html.theme-depth #xai-key-modal,
+html.theme-depth #collection-new-modal,
+html.theme-depth #piece-bulk-create-modal {
+  box-shadow: var(--depth-shadow-lg);
+}
+
+html.theme-depth .collection-ctx-menu {
+  box-shadow: var(--depth-shadow-lg);
+}
+
+html.theme-depth input,
+html.theme-depth select,
+html.theme-depth textarea,
+html.theme-depth .param-range-wrap,
+html.theme-depth .seed-control,
+html.theme-depth .zoom-control,
+html.theme-depth .param-readout-bar,
+html.theme-depth .param-vec2-pad {
+  box-shadow: var(--depth-shadow-inset);
+}
+
+html.theme-depth .token-chip,
+html.theme-depth .param-readout-swatch-wrap {
+  box-shadow: var(--depth-shadow-sm);
+}
