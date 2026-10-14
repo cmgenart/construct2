@@ -2,7 +2,7 @@
 
 This document is the **single architecture reference** for the CC3 generative-art toolchain: the **Canvas Core** runtime, the **PropMaster (PMaster)** build compiler, and **advBuilder** (the current dev shell).
 
-For deep dives on individual features, see the [documentation index](./README.md). Historical audits live at the repo root: [`audit_canvascore.md`](../../audit_canvascore.md), [`audit_builder.md`](../../audit_builder.md).
+For deep dives on individual features, see the [documentation index](./README.md). Inventories of the running app: [`_audit/`](./_audit/README.md).
 
 ---
 
@@ -188,7 +188,7 @@ Standard insert names expected by the pipeline:
 | Params | `OnParam(fn)`, `SendParams(map)` → `parent.postMessage` in advBuilder builds |
 | Debug / cert | `MakeCert`, `SetCertVisibility`, mouse/touch when `canvas_input:on` |
 
-Full API audit: [`audit_canvascore.md`](../../audit_canvascore.md).
+Full API inventory: [`_audit/RUNTIME-cc-v3.23.md`](./_audit/RUNTIME-cc-v3.23.md).
 
 ### 4.4 Parameter bridge (advBuilder)
 
@@ -574,8 +574,8 @@ node property_parse.test.js
 | Collections | [COLLECTION-DESIGN-V2.md](./COLLECTION-DESIGN-V2.md) |
 | Param drivers | [PARAMETER-DRIVERS-DESIGN.md](./PARAMETER-DRIVERS-DESIGN.md) |
 | Staging / parity | [STAGING.md](../STAGING.md) |
-| Canvas Core audit | [audit_canvascore.md](../../audit_canvascore.md) |
-| Builder audit | [audit_builder.md](../../audit_builder.md) |
+| Canvas Core inventory | [_audit/RUNTIME-cc-v3.23.md](./_audit/RUNTIME-cc-v3.23.md) |
+| App / docs inventory | [_audit/README.md](./_audit/README.md) |
 
 ---
 

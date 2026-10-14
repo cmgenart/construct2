@@ -2,7 +2,7 @@
 
 **Status:** Active spec — initial implementation target  
 **Part of:** 3-part minting roadmap — see [CLOUD-MINTING-INTERFACE.md](./CLOUD-MINTING-INTERFACE.md) for Parts 2–3 (future cloud integration)  
-**Related:** [FINAL-LAUNCH-PREP.md](./FINAL-LAUNCH-PREP.md) §4 is **authoritative** for staging layout, zip naming, bundle mode activation, and text-as-files authoring. This document retains the **cloud ingest contract** (§7) and preflight rules (§3); §2 export naming, §5 marketing paths, and §6 save-dialog export are **superseded** by FINAL-LAUNCH-PREP §4.
+**Related:** [RELEASE-FEATURES-PLAN.md](./RELEASE-FEATURES-PLAN.md) covers installer and GitHub release packaging. This document retains the **cloud ingest contract** (§7) and preflight rules (§3).
 
 ---
 

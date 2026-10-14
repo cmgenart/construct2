@@ -169,4 +169,4 @@ Update [COLLECTION-DESIGN-V2.md](./COLLECTION-DESIGN-V2.md) §6.3 error row to r
 
 ---
 
-*Authoritative for piece list error UX. Launch tracking: [FINAL-LAUNCH-PREP.md](./FINAL-LAUNCH-PREP.md) F1.2.*
+*Authoritative for piece list error UX. See [NEXT-WORK-PLAN.md](./NEXT-WORK-PLAN.md).*

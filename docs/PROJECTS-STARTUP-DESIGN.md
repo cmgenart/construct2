@@ -3,7 +3,7 @@
 **Version:** 1.2  
 **Date:** June 2026  
 **Status:** Workspace + multi-root + unified project tree UI **implemented**; lazy legacy in-place upgrade + read-only policy **implemented**; Phase E5 (runtime dropdown + selection model) **implemented**; shell UX polish (in-app dialogs, window state, Explorer integration) **implemented**  
-**Related:** [STAGING.md](../STAGING.md) §4.2, [CORE.md](./CORE.md) §6, [PROJECT-ORGANIZATION.md](../../../art/docs/PROJECT-ORGANIZATION.md) §7, [NEXT-WORK-PLAN.md](./NEXT-WORK-PLAN.md) (Tracks A–C complete)
+**Related:** [STAGING.md](../STAGING.md) §4.2, [CORE.md](./CORE.md) §6, [NEXT-WORK-PLAN.md](./NEXT-WORK-PLAN.md) (Tracks A–C complete)
 
 ---
 

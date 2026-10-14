@@ -2640,7 +2640,12 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, {'Content-Type':'text/html'});
     res.end(html);
 
-  } else if (pathname.startsWith('/docs/') || ((pathname.startsWith('/runtimes/') || pathname.startsWith('/lib/')) && pathname.toLowerCase().endsWith('.md'))) {
+  } else if (
+    pathname === '/README.md' ||
+    pathname === '/STAGING.md' ||
+    pathname.startsWith('/docs/') ||
+    ((pathname.startsWith('/runtimes/') || pathname.startsWith('/lib/')) && pathname.toLowerCase().endsWith('.md'))
+  ) {
     const rel = pathname.startsWith('/docs/')
       ? 'docs/' + decodeURIComponent(pathname.slice('/docs/'.length)).replace(/\\/g, '/')
       : decodeURIComponent(pathname.slice(1)).replace(/\\/g, '/');

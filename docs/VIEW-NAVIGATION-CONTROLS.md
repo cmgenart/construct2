@@ -1,7 +1,7 @@
 # View navigation controls — specification
 
 **Status:** **Implemented** — F1.11 toolbar pan/zoom, Ctrl-hold, reset, fullscreen; F1.11b RMB peek zoom  
-**Phase:** [FINAL-LAUNCH-PREP.md](./FINAL-LAUNCH-PREP.md) F1.11 / F1.11b (Phase 1 platform foundation — preview polish)  
+**Phase:** preview polish — see [NEXT-WORK-PLAN.md](./NEXT-WORK-PLAN.md) and [VISUALISER.md](./VISUALISER.md).  
 **Related:** [VISUALISER.md](./VISUALISER.md), [VIEWPORT-BACKGROUND.md](./VIEWPORT-BACKGROUND.md), [CORE.md](./CORE.md) §6.2, [UI-COLOUR-REVIEW.md](./UI-COLOUR-REVIEW.md), [VISUALIZER-CONSOLE.md](./VISUALIZER-CONSOLE.md)
 
 Dev-only controls for **panning, zooming, peek inspection, and fullscreen** of the artwork preview inside `#vis-viewport`. The host applies a CSS transform matrix to the preview iframe so the artist can inspect detail without changing built art HTML or canvas core `Frame()` behaviour.

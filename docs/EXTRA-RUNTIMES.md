@@ -22,7 +22,7 @@ Four runtime shells (embedded vs external lib loading) and four matching demo te
 | `three-embedded` | Three v0.177.0 inlined via `//import<three.module.min.js>` + blob URL loader | Breathing colour cube grid |
 | `three-external` | Three ES module + import map from CDN | Same art |
 
-**On disk:** [`wip/extra-runtimes/`](../wip/extra-runtimes/) — see its [README](../wip/extra-runtimes/README.md) for layout, CDN URLs, and manual test steps.
+**On disk:** a deactivated `wip/extra-runtimes/` folder (not shipped). Layout, CDN URLs, and manual test steps stay with that folder when it exists.
 
 ---
 
@@ -116,7 +116,7 @@ When promoting these to first-class runtimes:
 - [ ] **Runtime groups** — optional `framework` group in dev UI dropdown ([`project_runtime.js`](../project_runtime.js), `dev-ui.html`)
 - [ ] **Scaffold** — ensure `resolveRuntimeFile()` resolves new manifest ids ([`project_scaffold.js`](../project_scaffold.js))
 - [ ] **Build validation** — test full/minify pipeline on embedded p5 (large output) and three module scripts
-- [ ] **Mint preflight** — size warnings for embedded framework cores ([FINAL-LAUNCH-PREP.md](./FINAL-LAUNCH-PREP.md) §10)
+- [ ] **Mint preflight** — size warnings for embedded framework cores ([MINT-READY-BUNDLE.md](./MINT-READY-BUNDLE.md))
 - [ ] **Lib manifest** — optional `lib/manifest.json` for framework deps and export reproducibility
 - [ ] **Runtime help** — `docs/runtimes/p5.md`, `docs/runtimes/three.md`
 - [ ] **WIP import path** (optional) — allow `//import<>` fallback from `wip/extra-runtimes/lib/` during development without copying libs
@@ -134,8 +134,7 @@ When promoting these to first-class runtimes:
 |----------|-----------|
 | [CORE.md](./CORE.md) §6.1.1 | Runtime selection model (Canvas Core today) |
 | [runtimes/README.md](../runtimes/README.md) | Live runtime registry |
-| [wip/README.md](../wip/README.md) | WIP folder policy |
-| [FINAL-LAUNCH-PREP.md](./FINAL-LAUNCH-PREP.md) §10 | Framework runtimes launch plan |
+| [MINT-READY-BUNDLE.md](./MINT-READY-BUNDLE.md) | Offline mint-ready bundle |
 | [PROJECTS-STARTUP-DESIGN.md](./PROJECTS-STARTUP-DESIGN.md) | Templates and runtime dropdown |
 
 ---

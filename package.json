@@ -35,6 +35,7 @@
     "test:project-inspect": "node project_inspect.test.js",
     "test:source-inventory": "node source_inventory.test.js",
     "test:project-runtime": "node project_runtime.test.js",
+    "test:help-links": "node help_paths.test.js && node help_links.test.js",
     "test:param": "node param_scan.test.js && node param_color.test.js && node param_coerce.test.js && node param_persist.test.js && node param_sendparams_patch.test.js && node driver_store.test.js && node param_drivers.test.js && node build_value_order.test.js && node property_parse.test.js && node import_resolve.test.js && node auto_resolve.test.js && node collection_auto_settings.test.js && node auto_context.test.js && node auto_generate.test.js && node cardano_metadata_split.test.js"
   },
   "devDependencies": {

@@ -94,7 +94,7 @@ Self-contained `.exe` — no git clone, no second download.
 
 ## 5. What each demo must be
 
-The list and teaching goals are in [construct-demos/docs/TEACHING-MAP.md](../../../construct-demos/docs/TEACHING-MAP.md) (16 slugs). For each:
+The list and teaching goals live in the sibling construct-demos teaching map (16 slugs). For each:
 
 1. Upgrade to **latest Canvas Core** (built-in `Perlin`, `LayerGL`, AsciiCore — no leftover noise tables or forked cores unless the lesson is the fork).
 2. Comments follow **that demo’s lesson only** (map § per-demo).

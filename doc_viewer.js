@@ -77,6 +77,7 @@
   function urlForRel(rel) {
     if (!rel) return '';
     const parts = rel.split('/').map(encodeURIComponent);
+    if (rel === 'README.md' || rel === 'STAGING.md') return '/' + parts.join('/');
     if (rel.startsWith('docs/')) return DOCS_PREFIX + parts.slice(1).join('/');
     if (rel.startsWith('runtimes/') || rel.startsWith('lib/')) return '/' + parts.join('/');
     return DOCS_PREFIX + parts.join('/');
@@ -85,7 +86,9 @@
   function parseDocHref(href) {
     if (!href) return null;
     const trimmed = href.trim();
-    if (/^https?:\/\//i.test(trimmed)) return { kind: 'external', url: trimmed };
+    if (/^https?:\/\//i.test(trimmed) || /^mailto:/i.test(trimmed)) {
+      return { kind: 'external', url: trimmed };
+    }
     let m = trimmed.match(DOC_LINK_RE);
     if (m) {
       const rel = 'docs/' + m[1];
@@ -101,29 +104,43 @@
       const rel = 'lib/' + m[1];
       return { kind: 'doc', rel: rel, url: urlForRel(rel) };
     }
-    if (/\.md$/i.test(trimmed) && !trimmed.includes('://')) {
-      let rel = trimmed.replace(/^\.?\//, '');
-      if (!rel.startsWith('docs/') && !rel.startsWith('runtimes/') && !rel.startsWith('lib/')) {
-        rel = 'docs/' + rel;
-      }
-      return { kind: 'doc', rel: rel, url: urlForRel(rel) };
+    if (trimmed === '/README.md' || trimmed === '/STAGING.md') {
+      const rel = trimmed.slice(1);
+      return { kind: 'doc', rel: rel, url: '/' + rel };
     }
     return null;
+  }
+
+  function joinHelpRel(currentRel, href) {
+    const hrefNorm = String(href || '').replace(/\\/g, '/');
+    const hashAt = hrefNorm.indexOf('#');
+    const pathOnly = hashAt >= 0 ? hrefNorm.slice(0, hashAt) : hrefNorm;
+    if (!pathOnly) return currentRel || '';
+    const current = String(currentRel || '').replace(/\\/g, '/');
+    const baseParts = current ? current.split('/').slice(0, -1) : [];
+    const start = pathOnly.startsWith('/') ? [] : baseParts;
+    const parts = [];
+    for (const p of start.concat(pathOnly.replace(/^\/+/, '').split('/'))) {
+      if (p === '' || p === '.') continue;
+      if (p === '..') {
+        if (!parts.length) return '';
+        parts.pop();
+        continue;
+      }
+      parts.push(p);
+    }
+    return parts.join('/');
   }
 
   function resolveRelativeDoc(current, href) {
     const parsed = parseDocHref(href);
     if (parsed) return parsed;
     if (!current) return null;
-    const baseParts = current.split('/');
-    baseParts.pop();
-    const hrefParts = href.split('/');
-    for (const part of hrefParts) {
-      if (part === '' || part === '.') continue;
-      if (part === '..') baseParts.pop();
-      else baseParts.push(part);
-    }
-    const rel = baseParts.join('/');
+    const pathOnly = String(href || '').split('#')[0];
+    if (!pathOnly) return { kind: 'hash' };
+    if (!/\.(md|txt)$/i.test(pathOnly)) return null;
+    const rel = joinHelpRel(current, pathOnly);
+    if (!rel) return null;
     return {
       kind: 'doc',
       rel: rel,

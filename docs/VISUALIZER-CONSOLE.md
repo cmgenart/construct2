@@ -472,4 +472,4 @@ The console does not replace piece list error styling or the errors modal.
 
 ---
 
-*Authoritative for visualizer console behaviour. Launch phase tracking lives in [FINAL-LAUNCH-PREP.md](./FINAL-LAUNCH-PREP.md) §1 F1.3.*
+*Authoritative for visualizer console behaviour. See [NEXT-WORK-PLAN.md](./NEXT-WORK-PLAN.md).*

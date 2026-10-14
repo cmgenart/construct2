@@ -68,6 +68,7 @@ npm run test:project-inspect
 npm run test:source-inventory
 npm run test:collection-source
 npm run test:workspace-first-run
+npm run test:help-links
 ```
 
 See `package.json` `"test:*"` scripts for the full set.
