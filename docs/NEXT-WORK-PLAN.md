@@ -60,3 +60,5 @@ Living plan for picker follow-ups, dev UI chrome, and runtime switching (E5).
 | Collection V2.1 | [COLLECTION-DESIGN-V2.md](./COLLECTION-DESIGN-V2.md) | Remaining V2.1 contract items |
 | Auto-generation | [AUTO-GENERATION.md](./AUTO-GENERATION.md) | xAI fill / platform prompts |
 | PARAM-VEC2 | [PARAM-VEC2-PLAN.md](./PARAM-VEC2-PLAN.md) | 2D vector param + pad UI |
+| Viewport capture | [VIEWPORT-CAPTURE.md](./VIEWPORT-CAPTURE.md) | Preview mp4 of the live canvas; research branch |
+| Inkoder | [INKODER.md](./INKODER.md) | Demo line editor + string decoder; research branch |
