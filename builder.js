@@ -39,6 +39,8 @@ const { runCollectionScript } = require("./collection_scripts.js");
 const { patchSendParamsTarget } = require("./param_sendparams_patch.js");
 const { patchViewportBgClient } = require("./viewport_bg_patch.js");
 const { patchViewNavClient } = require("./view_nav_patch.js");
+const { patchCaptureClient } = require("./capture_patch.js");
+const { writeCapture, captureExtForMime, resolveCaptureFile, CAPTURE_MAX_BYTES } = require("./capture_store.js");
 const {
   getDefaultViewportBgSettings,
   normalizeViewportColor,
@@ -536,6 +538,13 @@ function syncParamValuesFromSchema() {
   }
 }
 
+/** Client sends the param map it is showing so a rebuild cannot snapshot an older sketch. */
+function applyIncomingParamValues(values) {
+  if (!values || typeof values !== "object" || Array.isArray(values)) return;
+  if (!state.paramValues || typeof state.paramValues !== "object") state.paramValues = {};
+  Object.assign(state.paramValues, values);
+}
+
 /** Scan //PARAM-* from art source files; writes `state.paramSchema` + `state.paramScanErrors`. */
 function refreshParamScan() {
   const bundles = collectSourceBundles(resolvedProjectPath(), getEffectiveSourceFiles());
@@ -734,8 +743,10 @@ function saveViewportUiSettings(patch) {
 function patchVisualiseHtml(html) {
   if (!html || typeof html !== "string") return html;
   return injectArtConsoleHook(
-    patchViewNavClient(
-      patchViewportBgClient(patchSendParamsTarget(html)),
+    patchCaptureClient(
+      patchViewNavClient(
+        patchViewportBgClient(patchSendParamsTarget(html)),
+      ),
     ),
   );
 }
@@ -2696,6 +2707,15 @@ const server = http.createServer((req, res) => {
     }
     res.writeHead(200, { "Content-Type": "application/javascript" });
     res.end(src);
+  } else if (pathname === "/capture_host.js") {
+    const src = loadFile(path.join(advDir, "capture_host.js"));
+    if (src == null) {
+      res.writeHead(404);
+      res.end();
+      return;
+    }
+    res.writeHead(200, { "Content-Type": "application/javascript" });
+    res.end(src);
   } else if (pathname === "/view_nav_controls.js") {
     const src = loadFile(path.join(advDir, "view_nav_controls.js"));
     if (src == null) {
@@ -3334,6 +3354,7 @@ const server = http.createServer((req, res) => {
       }
       const shouldRebuild =
         payload.rebuild !== false && !isCollectionMode();
+      applyIncomingParamValues(payload.paramValues);
       saveDevJson();
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(
@@ -3607,6 +3628,7 @@ const server = http.createServer((req, res) => {
       }
       const shouldRebuild =
         payload.rebuild !== false && !isCollectionMode();
+      applyIncomingParamValues(payload.paramValues);
       saveDevJson();
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(
@@ -3669,6 +3691,7 @@ const server = http.createServer((req, res) => {
           }
         }
       }
+      applyIncomingParamValues(d.paramValues);
       saveDevJson();
       const changed = JSON.stringify(state.props.current) !== oldCur;
       res.writeHead(200, { "Content-Type": "application/json" });
@@ -3681,9 +3704,20 @@ const server = http.createServer((req, res) => {
       res.writeHead(400, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ ok: false, error: "Use collection build in collection mode" }));
     } else {
-      performBuild(true);
-      res.writeHead(200);
-      res.end();
+      let body = "";
+      req.on("data", (d) => (body += d));
+      req.on("end", () => {
+        let payload = {};
+        try {
+          payload = JSON.parse(body || "{}");
+        } catch (e) {
+          payload = {};
+        }
+        applyIncomingParamValues(payload.paramValues);
+        performBuild(true);
+        res.writeHead(200);
+        res.end();
+      });
     }
   } else if (pathname === "/metadata/settings") {
     if (req.method !== "POST") {
@@ -3815,6 +3849,67 @@ const server = http.createServer((req, res) => {
           checkerAltColor: state.settings.viewportBgCheckerAltColor,
         }),
       );
+    });
+  } else if (pathname === "/captures/reveal") {
+    if (req.method !== "POST") {
+      res.writeHead(405, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: false, error: "Method not allowed" }));
+      return;
+    }
+    let body = "";
+    req.on("data", (d) => (body += d));
+    req.on("end", () => {
+      let payload = {};
+      try {
+        payload = JSON.parse(body || "{}");
+      } catch (e) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: false, error: "Invalid JSON" }));
+        return;
+      }
+      const file = resolveCaptureFile(projectPath, payload.name);
+      if (!file) {
+        res.writeHead(404, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: false, error: "Capture not found" }));
+        return;
+      }
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: true, path: file, name: path.basename(file) }));
+    });
+  } else if (pathname === "/captures") {
+    if (req.method !== "POST") {
+      res.writeHead(405, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: false, error: "Method not allowed" }));
+      return;
+    }
+    const chunks = [];
+    let size = 0;
+    let tooBig = false;
+    req.on("data", (d) => {
+      size += d.length;
+      if (size > CAPTURE_MAX_BYTES) {
+        tooBig = true;
+        return;
+      }
+      chunks.push(d);
+    });
+    req.on("end", () => {
+      if (tooBig) {
+        res.writeHead(413, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: false, error: "Capture is too large" }));
+        return;
+      }
+      const u = new URL(`http://localhost${req.url}`);
+      const ext = u.searchParams.get("ext") || captureExtForMime(req.headers["content-type"]);
+      const result = writeCapture(projectPath, {
+        ext,
+        projectName,
+        bytes: Buffer.concat(chunks),
+      });
+      res.writeHead(result.ok ? 200 : result.status || 500, {
+        "Content-Type": "application/json",
+      });
+      res.end(JSON.stringify(result));
     });
   } else if (pathname === '/analyze/settings') {
     if (req.method !== 'POST') {

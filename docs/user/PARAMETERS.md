@@ -33,6 +33,8 @@ OnParam((key, value) => {
 });
 ```
 
-The runtime holds the last posted map if `OnParam` was not ready yet (rebuilds are like that). Sending out: `SendParams({ key: value })`.
+The runtime merges posted maps and applies that snapshot when `OnParam` is assigned, including if the art starts again. Assigning `OnParam` asks the host for every stored parameter. A value still sitting on its code default is filled from `ParamDefaults` if the art sends one. Sending out: `SendParams({ key: value })`.
+
+A long string shows the start of the value, `...`, and the end, fitted to the row. Click it to edit in a text window over the UI. Drag the title to move the window. Pin it from the top right to keep it open, and copy the text from the button beside the pin. The window stays tied to that parameter: edits commit as you type, and a new value from the art fills it when the text field is not focused. Click anywhere else to close it, unless it is pinned.
 
 Drivers speak through a small messenger. There is a `parameters/DRIVERS_README.txt` if you are building one. Most people never should.

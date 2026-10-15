@@ -585,7 +585,7 @@ box-sizing:border-box;
                 t.rad = (a) => atan2(t.x, -t.y);
                 t.len = (a) => sqrt(t.x ** 2 + t.y ** 2);
                 t.circ = (r,l=1) => set(sin(r)*l, -cos(r)*l);
-                //t.perp = (a) => set(t.y, -t.x);
+                t.perp = (a) => set(t.y, -t.x);
                 t.add = (v) => set(t.x + v.x, t.y + v.y);
                 t.sub = (v) => set(t.x - v.x, t.y - v.y);
                 // t.mv = (v) => set(t.x * v.x, t.y * v.y);
@@ -931,19 +931,31 @@ Log( ct_test )
             //   - assign cc_onParam = (k,v,action)=>... once; optional OnParam(fn) sets the same slot (legacy)
             //   - CEV sits between const SendParams and let cc_onParam for minification
             const SendParams = (data) => WINDOW.parent.postMessage(data, "*");
+            // Merge every bare map into one snapshot. A later partial post must not
+            // drop keys already stored, and OnParam replays that snapshot each time
+            // it is assigned (including when ART() runs again).
             CEV("message", (e) => {
                 const d = e.data ?? {};
                 if (d && d.type) return;
-                cc_onParam
-                    ? FoP(d, (k, v) => cc_onParam(k, v, e.action))
+                d && typeof d == "object" && !d.length
+                    ? (cc_paramHold = Object.assign(cc_paramHold || {}, d))
                     : (cc_paramHold = d);
+                cc_onParam && FoP(d, (k, v) => cc_onParam(k, v, e.action));
             }, WINDOW);
             let cc_onParam;
             let cc_paramHold;
+            let cc_paramDefaults;
+            // Code values to use when the host has nothing stored for that name.
+            const ParamDefaults = (map) => (cc_paramDefaults = map);
+            // Ask for every stored parameter only after the handler exists.
             const OnParam = (fn) => (
                 (cc_onParam = fn),
                 cc_paramHold && FoP(cc_paramHold, (k, v) => fn(k, v)),
-                (cc_paramHold = 0)
+                WINDOW.parent !== WINDOW &&
+                    WINDOW.parent.postMessage(
+                        { type: "advBuilder:paramInit", defaults: cc_paramDefaults || {} },
+                        "*",
+                    )
             );
 
             let _ScreenStatTimer;
@@ -1446,7 +1458,8 @@ Canvas(...cc_GetWindowSize(),0) // set the width,height,border of the canvas
                     );
 
                 let SetCertVisibility = (a) => {
-                    CONTEXT[1][0].style.display = a ? "block" : "none";
+                    const cert = CONTEXT[1] && CONTEXT[1][0];
+                    if (cert) cert.style.display = a ? "block" : "none";
                 }; //;cc_WindowResized()}
                 let down = (e) => {
                     mouseHeld = 1;
@@ -1472,7 +1485,7 @@ Canvas(...cc_GetWindowSize(),0) // set the width,height,border of the canvas
                         [
                             "resize",
                             (a) => (
-                                Loop(2, (n) => (cc_PrepFrame(n), Frame(1))), // rescale to fit
+                                Loop(CONTEXT.length, (n) => (cc_PrepFrame(n), Frame(1))), // rescale to fit
                                 cc_OnResize()
                                 // console.log("resizing!")
                             ), // call user onResize

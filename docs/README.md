@@ -24,8 +24,8 @@
 | [VISUALIZER-CONSOLE.md](./VISUALIZER-CONSOLE.md) | **Implemented (F1.3)** — Build/Art/Both log panel, capture toggles, windowed history, disk persistence, scroll-to-tail on expand |
 | [VIEWPORT-BACKGROUND.md](./VIEWPORT-BACKGROUND.md) | Dev-only preview BG (solid/checker: shared fill + alternate swatch), `CanvasWall` layering, Full/Min only, build isolation |
 | [VIEW-NAVIGATION-CONTROLS.md](./VIEW-NAVIGATION-CONTROLS.md) | **Implemented (F1.11 + F1.11b)** — Preview pan/zoom, Ctrl-hold, reset, fullscreen, RMB peek zoom; Full/Min only |
-| [VIEWPORT-CAPTURE.md](./VIEWPORT-CAPTURE.md) | **Planned** — Preview camera: record the live art canvas to `<project>/captures/` as mp4; serve-time inject only |
-| [INKODER.md](./INKODER.md) | **Planned** — Demo line editor: subdivision strokes to a `PARAM-STRING`, tiny decoder on `cc-v3.23` |
+| [VIEWPORT-CAPTURE.md](./VIEWPORT-CAPTURE.md) | **Research** — Preview camera: record the live art canvas to `<project>/captures/`; serve-time inject only |
+| [INKODER.md](./INKODER.md) | **Research** — Demo line editor: subdivision strokes to a `PARAM-STRING`, decoder on `cc-v3.23` |
 | [PROPERTY-ANALYSIS.md](./PROPERTY-ANALYSIS.md) | Property distribution sampler API, `GetStats`, dev-ui Analysis mode |
 | [COLLECTION-DESIGN.md](./COLLECTION-DESIGN.md) | **Design (v1, planned)** — Collection visualiser mode, manifest in `dev.json` |
 | [COLLECTION-DESIGN-V2.md](./COLLECTION-DESIGN-V2.md) | **Collections v2 (implemented)** — On-disk collections, piece records, piece list UI, build batch, source fingerprint, effective core in `_source/` |

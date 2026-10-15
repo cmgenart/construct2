@@ -242,22 +242,30 @@ The advBuilder canvas template already defines minimal **parameter messaging** (
             CEV("message", (e) => {
                 const d = e.data ?? {};
                 if (d && d.type) return;
-                cc_onParam
-                    ? FoP(d, (k, v) => cc_onParam(k, v, e.action))
+                d && typeof d == "object" && !d.length
+                    ? (cc_paramHold = Object.assign(cc_paramHold || {}, d))
                     : (cc_paramHold = d);
+                cc_onParam && FoP(d, (k, v) => cc_onParam(k, v, e.action));
             }, WINDOW);
             let cc_onParam;
             let cc_paramHold;
+            let cc_paramDefaults;
+            const ParamDefaults = (map) => (cc_paramDefaults = map);
             const OnParam = (fn) => (
                 (cc_onParam = fn),
                 cc_paramHold && FoP(cc_paramHold, (k, v) => fn(k, v)),
-                (cc_paramHold = 0)
+                WINDOW.parent !== WINDOW &&
+                    WINDOW.parent.postMessage(
+                        { type: "advBuilder:paramInit", defaults: cc_paramDefaults || {} },
+                        "*",
+                    )
             );
 ```
 
 - **`SendParams(data)`** — posts the bare map to **`WINDOW.parent`** with target `"*"`. When the piece is the top-level document, `parent === window` and the host still receives the message. **Do not** use `WINDOW.postMessage` on self only — that updates `cc_onParam` inside the iframe but **never reaches** dev-ui.
-- **`cc_onParam`** — optional callback assigned by the piece (e.g. `cc_onParam = (key, value, action) => { ... }`). The core registers **one** `message` listener up front; it forwards bare maps (messages with a `type` field are ignored) and calls `cc_onParam(key, value, e.action)`. A map that arrives before the handler is assigned is held and replayed by **`OnParam(fn)`**. Assign **outside** the per-frame draw path so the handler is not recreated every tick.
-- **`OnParam(fn)`** — assign `cc_onParam` and flush any held map (same slot, no listener stacking). Prefer **`cc_onParam`** when authoring new pieces.
+- **`cc_onParam`** — optional callback assigned by the piece (e.g. `cc_onParam = (key, value, action) => { ... }`). The core registers **one** `message` listener up front; it forwards bare maps (messages with a `type` field are ignored) and calls `cc_onParam(key, value, e.action)`. Maps that arrive before the handler is assigned are **merged** into `cc_paramHold` (a later partial map does not drop keys). Assign **outside** the per-frame draw path so the handler is not recreated every tick.
+- **`OnParam(fn)`** — assign `cc_onParam` and replay the merged snapshot (same slot, no listener stacking). The snapshot is kept, so a later `OnParam` (for example after `ART()` runs again) still receives the stored values. Assigning it also posts `{ type: "advBuilder:paramInit", defaults }` to the host. The host fills any name it does not have yet from `defaults` (the value in the code), then posts **every** parameter value back to the art. `ParamDefaults(map)` sets that default map before `OnParam`. Prefer **`cc_onParam`** when authoring new pieces.
+- **Long strings in dev-ui:** a string that does not fit the row shows the start, `...`, and the end. Clicking it opens a text window over the UI. The title bar drags. Pin keeps the window open, and the copy button writes the current text. The value commits while typing, and an art update fills the window when its field is not focused. Clicking anywhere else closes the window unless it is pinned.
 
 **Audit items (implementation phase):**
 

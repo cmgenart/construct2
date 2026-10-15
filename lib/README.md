@@ -31,3 +31,13 @@ const ac = AsciiCore(acLayer);
 Override locally by placing the same filename in the project root (e.g. while developing in `art/AsciiCore/`).
 
 User docs: [AsciiCore.getting-started.md](./AsciiCore.getting-started.md), [AsciiCore.reference.md](./AsciiCore.reference.md). Older spec: [docs/runtimes/ASCII-CORE-SPEC.md](../docs/runtimes/ASCII-CORE-SPEC.md) (superseded).
+
+## Inkoder
+
+| File | Role |
+|------|------|
+| `inkoder_decode.js` | String → points. Safe to ship in a piece. |
+| `inkoder_encode.js` | Points → string. Editor only. |
+| `inkoder_draw.js` | `drawInkStrip` after `SubDivRelax`. |
+
+The editor demo imports encode and decode. The playback demo imports decode and draw only. See [docs/INKODER.md](../docs/INKODER.md).

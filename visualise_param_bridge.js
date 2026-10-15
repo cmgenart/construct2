@@ -68,7 +68,10 @@
       return;
     }
 
-    if (ev.data && ev.data.type === "advBuilder:requestParams") {
+    if (
+      ev.data &&
+      (ev.data.type === "advBuilder:requestParams" || ev.data.type === "advBuilder:paramInit")
+    ) {
       if (isFromNestedArtFrame(ev.source)) {
         try {
           window.parent.postMessage(ev.data, pageOrigin);

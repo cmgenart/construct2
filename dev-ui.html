@@ -34,6 +34,7 @@
 <script src="/collection_ui.js"></script>
 <script src="/console_panel.js"></script>
 <script src="/view_nav_controls.js"></script>
+<script src="/capture_host.js"></script>
 <script src="/vendor/iro.min.js"></script>
 <script src="/color_picker.js"></script>
 <style>
@@ -240,6 +241,61 @@
   }
   .vis-view-control-btn:disabled {
     opacity:0.45; cursor:default;
+  }
+  .vis-capture-wrap {
+    position:relative; display:inline-flex; align-items:stretch; gap:6px;
+    align-self:center; margin:0 0 3px 0;
+  }
+  .vis-capture-file {
+    position:relative; box-sizing:border-box; max-width:168px; min-width:0;
+    margin:0; padding:0 6px; height:22px;
+    border:1px solid var(--border); border-radius:5px;
+    background:var(--surface); color:var(--muted);
+    font:11px/20px ui-monospace, monospace; cursor:pointer;
+    display:inline-flex; align-items:center;
+  }
+  .vis-capture-file[hidden] { display:none !important; }
+  .vis-capture-file-name {
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:156px;
+  }
+  .vis-capture-file-icon {
+    display:none; position:absolute; inset:0;
+    align-items:center; justify-content:center;
+    background:var(--surface-hover); color:var(--text); border-radius:inherit;
+  }
+  .vis-capture-file-icon .vis-nav-icon { width:14px; height:14px; }
+  .vis-capture-file:hover .vis-capture-file-name,
+  .vis-capture-file:focus-visible .vis-capture-file-name { opacity:0; }
+  .vis-capture-file:hover .vis-capture-file-icon,
+  .vis-capture-file:focus-visible .vis-capture-file-icon { display:flex; }
+  .vis-capture-file.is-error { color:var(--danger, #a33); cursor:default; }
+  .vis-capture-file.is-error:hover .vis-capture-file-name,
+  .vis-capture-file.is-error:focus-visible .vis-capture-file-name { opacity:1; }
+  .vis-capture-file.is-error .vis-capture-file-icon { display:none !important; }
+  #vis-capture-record { color:#7a1616; }
+  #vis-capture-record .vis-nav-icon { width:18px; height:18px; }
+  #vis-capture-record.is-recording { color:#ff2a2a; }
+  #vis-capture-record.is-recording .vis-nav-icon {
+    animation:vis-capture-glow 1.1s ease-in-out infinite;
+  }
+  @keyframes vis-capture-glow {
+    0%, 100% { filter:drop-shadow(0 0 1px #c41212); }
+    50% { filter:drop-shadow(0 0 5px #ff3a3a); }
+  }
+  #vis-capture-timer {
+    position:absolute; top:8px; right:8px; z-index:14; pointer-events:none;
+    padding:3px 7px; border-radius:5px;
+    background:color-mix(in srgb, var(--modal-bg) 92%, transparent);
+    border:1px solid var(--border-strong);
+    box-shadow:var(--depth-shadow-sm);
+    font:12px/1.2 ui-monospace, monospace; color:var(--text);
+    font-variant-numeric:tabular-nums;
+  }
+  #vis-capture-timer[hidden] { display:none !important; }
+  #vis-capture-timer.is-pop { animation:vis-capture-pop 160ms ease-out; }
+  @keyframes vis-capture-pop {
+    from { transform:translateY(-4px); opacity:0; }
+    to { transform:none; opacity:1; }
   }
   #vis-transform-root {
     position:absolute; top:0; left:0; right:0; bottom:0;
@@ -1169,6 +1225,60 @@
   .param-row select.param-dropdown, .param-row .param-str {
     flex:1; min-width:0; height:16px; box-sizing:border-box; font-size:12px; padding:0 4px; margin:0; line-height:16px;
   }
+  .param-row .param-str-long {
+    flex:1; min-width:0; height:16px; box-sizing:border-box; display:flex; align-items:center;
+    padding:0 4px; margin:0; border:1px solid var(--border); border-radius:2px;
+    background:var(--input-bg); color:var(--control-text); font:12px/16px ui-monospace, monospace;
+    cursor:text; text-align:left; overflow:hidden;
+  }
+  .param-str-head {
+    flex:1 1 50%; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .param-str-tail {
+    flex:1 1 50%; min-width:0; overflow:hidden; display:flex; justify-content:flex-end;
+  }
+  .param-str-tail > span { white-space:nowrap; flex:0 0 auto; }
+  .param-str-long.param-str-fits .param-str-tail { display:none; }
+  .param-str-long.param-str-fits .param-str-head { flex:1 1 auto; text-overflow:clip; }
+  .param-str-pop { position:fixed; inset:0; z-index:5100; }
+  .param-str-pop[hidden] { display:none; }
+  .param-str-pop-backdrop { position:absolute; inset:0; }
+  .param-str-pop-sheet {
+    position:absolute; display:flex; flex-direction:column; box-sizing:border-box;
+    width:min(560px, calc(100vw - 16px)); max-height:min(70vh, 520px);
+    background:var(--modal-bg); border:1px solid var(--border-strong); border-radius:8px;
+    box-shadow:var(--depth-shadow-lg); overflow:hidden;
+  }
+  .param-str-pop.is-pinned { pointer-events:none; }
+  .param-str-pop.is-pinned .param-str-pop-backdrop { display:none; }
+  .param-str-pop.is-pinned .param-str-pop-sheet { pointer-events:auto; }
+  .param-str-pop-title {
+    flex:0 0 auto; display:flex; align-items:center; gap:2px;
+    padding:2px 4px 2px 8px; font-size:12px; font-weight:700; color:var(--text);
+    background:var(--head-bg); border-bottom:1px solid var(--border);
+    cursor:grab; user-select:none;
+  }
+  .param-str-pop-title.is-dragging { cursor:grabbing; }
+  .param-str-pop-name {
+    flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .param-str-pop-act {
+    flex:0 0 auto; width:22px; height:20px; margin:0; padding:0;
+    border:0; border-radius:4px; background:transparent; color:var(--muted);
+    display:inline-flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .param-str-pop-act:hover { background:var(--surface-hover); color:var(--text); }
+  .param-str-pop-act[aria-pressed="true"] {
+    background:var(--state-active-bg); color:var(--state-active-text);
+  }
+  .param-str-pop-act.is-copied { color:var(--text); }
+  .param-str-pop-act svg { display:block; width:14px; height:14px; }
+  .param-str-pop-input {
+    flex:1 1 auto; width:100%; min-height:200px; max-height:60vh; box-sizing:border-box;
+    margin:0; padding:8px; border:0; resize:vertical; overflow:auto;
+    background:var(--input-bg); color:var(--control-text);
+    font:12px/1.45 ui-monospace, monospace;
+  }
   .param-row textarea.param-json { flex:1; min-width:0; min-height:48px; font-family:ui-monospace,monospace; font-size:11px; padding:4px; resize:vertical; }
   .param-row .choice-container { flex:1; min-width:0; }
   .param-choice-btn {
@@ -1852,6 +1962,20 @@
             <svg class="vis-nav-icon" viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="square" d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4"/></svg>
           </button>
         </div>
+        <div class="vis-capture-wrap" id="vis-capture-wrap">
+          <div class="vis-view-control-group" id="vis-capture-controls">
+            <button type="button" id="vis-capture-record" class="vis-view-control-btn" aria-pressed="false" title="Record" aria-label="Record">
+              <svg class="vis-nav-icon" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.2" fill="currentColor"/></svg>
+            </button>
+            <button type="button" id="vis-capture-shot" class="vis-view-control-btn" title="Save a PNG of the canvas" aria-label="Save a PNG of the canvas">
+              <svg class="vis-nav-icon" viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.3" d="M1.5 5.5h2.2l1-1.8h6.6l1 1.8H14.5v7h-13z"/><circle cx="8" cy="8.6" r="2.1" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>
+            </button>
+          </div>
+          <button type="button" id="vis-capture-file" class="vis-capture-file" hidden>
+            <span id="vis-capture-file-name" class="vis-capture-file-name"></span>
+            <span class="vis-capture-file-icon" aria-hidden="true"><svg class="vis-nav-icon" viewBox="0 0 16 16"><path fill="currentColor" d="M1.2 3.2h4.1l1.3 1.4h8.2v8.2H1.2z"/></svg></span>
+          </button>
+        </div>
       </div>
       <button type="button" id="theme-toggle" class="theme-toggle" role="switch" aria-label="Day/night theme" title="Day/night theme">
         <span class="theme-toggle-track">
@@ -1869,6 +1993,7 @@
       <div id="collection-preview-banner" hidden aria-live="polite"></div>
       <button type="button" id="offline-badge" hidden title="Click to re-connect">offline</button>
       <div id="vis-nav-overlay" aria-hidden="true"></div>
+      <div id="vis-capture-timer" class="vis-capture-timer" hidden>0:00</div>
       <button type="button" id="vis-nav-exit-fullscreen" hidden title="Exit fullscreen" aria-label="Exit fullscreen">✕</button>
       <div id="section-help-overlay" hidden aria-hidden="true">
         <div id="section-help-panel" class="thin-scroll" role="dialog" aria-labelledby="section-help-title">
@@ -2094,6 +2219,8 @@ let wsReconnectTimer = null;
 const paramTriggerCount = {};
 /** Last bare map posted to the preview iframe (JSON); avoids duplicate postMessage when upstream repeats. */
 let iframeParamPostSig = '';
+/** Param map a preview reload must deliver. Cleared once that art has asked for it. */
+let iframeParamSnapshot = null;
 /** Remember Raw / Preview (or Run) tab per visualiser shell mode. */
 const visTabMemory = { utf8: 'raw', metadata: 'raw' };
 
@@ -2156,8 +2283,96 @@ function effectiveParamValuesForArt() {
   return out;
 }
 
+/**
+ * Values for the preview that is loading now.
+ * A late /params response can put an older sketch back into state while the
+ * panel still shows the strokes just drawn. The snapshot taken at reload wins
+ * unless a newer stroke arrived after that.
+ */
+function paramsForArtNow() {
+  const live = effectiveParamValuesForArt();
+  const snap = iframeParamSnapshot;
+  if (!snap) return live;
+  const out = { ...live };
+  for (const k of Object.keys(snap)) {
+    const sentNewer =
+      artSentSinceBuild &&
+      Object.prototype.hasOwnProperty.call(artSentSinceBuild, k) &&
+      !paramValuesEqual(artSentSinceBuild[k], snap[k]);
+    const pendingNewer =
+      artParamsPostPending &&
+      Object.prototype.hasOwnProperty.call(artParamsPostPending, k) &&
+      !paramValuesEqual(artParamsPostPending[k], snap[k]);
+    out[k] = sentNewer || pendingNewer ? live[k] : snap[k];
+  }
+  if (!state.paramValues || typeof state.paramValues !== "object") state.paramValues = {};
+  for (const k of Object.keys(out)) {
+    if (!paramValuesEqual(state.paramValues[k], out[k])) state.paramValues[k] = out[k];
+  }
+  return out;
+}
+
 function syncEffectiveParamsToArtIframe() {
-  applyParamsToIframe(effectiveParamValuesForArt(), { allowEmpty: true });
+  applyParamsToIframe(paramsForArtNow(), { allowEmpty: true });
+}
+
+/** True when this name has no stored value yet, so the art's code default can fill it. */
+function paramStoredValueMissing(name) {
+  const stored = state.paramValues || {};
+  if (!Object.prototype.hasOwnProperty.call(stored, name)) return true;
+  const v = stored[name];
+  if (v === undefined || v === null) return true;
+  const spec = (state.paramSchema || []).find((p) => p.name === name);
+  if (spec && "default" in spec && paramValuesEqual(v, spec.default)) return true;
+  return false;
+}
+
+/** Fill keys the host does not have yet, then the caller sends every parameter to the art. */
+function adoptArtParamDefaults(defaults) {
+  if (!defaults || typeof defaults !== "object" || Array.isArray(defaults)) return;
+  if (!state.paramValues || typeof state.paramValues !== "object") state.paramValues = {};
+  const coerceFn = window.advParamCoerce && window.advParamCoerce.coerceParamValue;
+  const schemaByName = new Map((state.paramSchema || []).map((p) => [p.name, p]));
+  const adopted = {};
+  for (const name of Object.keys(defaults)) {
+    const spec = schemaByName.get(name);
+    if (!spec || !paramStoredValueMissing(name)) continue;
+    if (
+      iframeParamSnapshot &&
+      Object.prototype.hasOwnProperty.call(iframeParamSnapshot, name)
+    ) {
+      const snapped = iframeParamSnapshot[name];
+      const snapUnset =
+        snapped === undefined ||
+        snapped === null ||
+        ("default" in spec && paramValuesEqual(snapped, spec.default));
+      if (!snapUnset) continue;
+    }
+    let next = defaults[name];
+    if (typeof coerceFn === "function") {
+      const coerced = coerceFn(spec, next);
+      if (coerced === null || coerced === undefined) continue;
+      next = coerced;
+    }
+    if (paramValuesEqual(state.paramValues[name], next)) continue;
+    state.paramValues[name] = next;
+    adopted[name] = next;
+    if (iframeParamSnapshot) iframeParamSnapshot[name] = next;
+  }
+  if (!Object.keys(adopted).length) return;
+  updateParamsUI();
+  fetch("/params", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ values: adopted, persist: true, broadcast: false }),
+  }).catch(() => {});
+}
+
+function replyAllParamsToArt() {
+  if (window.advParamDriverHost) window.advParamDriverHost.resetIframeParamLast();
+  iframeParamPostSig = "";
+  syncEffectiveParamsToArtIframe();
+  iframeParamSnapshot = null;
 }
 
 /** Shallow delta for keys touched by a POST /params (values + optional remove). */
@@ -2208,9 +2423,30 @@ function fireParamButton(name) {
   return postParamPatch({ [name]: v }, undefined, true);
 }
 
+/**
+ * Apply a /params response without burying a newer local edit.
+ * `sent` is the map this request posted. Keys the user or the art changed
+ * after that stay as they are.
+ */
+function mergeParamResponse(sent, responseValues) {
+  if (!responseValues) return;
+  const current = state.paramValues || {};
+  const merged = { ...responseValues };
+  for (const k of Object.keys(current)) {
+    const inSent = Object.prototype.hasOwnProperty.call(sent, k);
+    if (inSent) {
+      if (!paramValuesEqual(current[k], sent[k])) merged[k] = current[k];
+    } else if (!paramValuesEqual(current[k], responseValues[k])) {
+      merged[k] = current[k];
+    }
+  }
+  state.paramValues = merged;
+}
+
 /** @param {{ persist?: boolean, skipIframe?: boolean, broadcast?: boolean }} [opts] */
 function postParamPatch(patchValues, remove, refreshUi = false, opts) {
-  const body = { values: patchValues || {} };
+  const sent = { ...(patchValues || {}) };
+  const body = { values: sent };
   if (opts && opts.persist === false) body.persist = false;
   if (opts && opts.broadcast === false) body.broadcast = false;
   const rem = remove && remove.length ? remove : undefined;
@@ -2223,9 +2459,17 @@ function postParamPatch(patchValues, remove, refreshUi = false, opts) {
     .then((r) => r.json())
     .then((j) => {
       if (j.ok && j.values) {
-        state.paramValues = j.values;
+        const current = state.paramValues || {};
+        mergeParamResponse(sent, j.values);
         if (!(opts && opts.skipIframe)) {
-          applyParamsToIframe(paramPatchForIframe(patchValues, rem, j.values));
+          const relay = {};
+          for (const k of Object.keys(sent)) {
+            if (paramValuesEqual(current[k], sent[k])) relay[k] = state.paramValues[k];
+          }
+          for (const k of rem || []) {
+            if (!Object.prototype.hasOwnProperty.call(sent, k)) relay[k] = state.paramValues[k] ?? null;
+          }
+          if (Object.keys(relay).length) applyParamsToIframe(relay);
         }
         if (refreshUi) updateParamsUI();
       }
@@ -2238,6 +2482,8 @@ let stateReady = false;
 let artParamQueue = [];
 let artParamsPostPending = null;
 let artParamsPostTimer = null;
+/** Values SendParams applied locally since the last build snapshot. A rebuild broadcast can be older than these. */
+let artSentSinceBuild = null;
 /** Active PARAM-FLOAT/INT range drag — skip panel rebuild (WS / art would replace DOM mid-drag). */
 let paramRangeDragEl = null;
 /** Active PARAM-VEC2 pad drag. */
@@ -2251,6 +2497,8 @@ function isParamRangeDragging() {
 
 /** Skip WS-driven panel rebuild while user edits a text/json param field. */
 function isParamTextEditing() {
+  const pop = document.getElementById("param-str-pop-input");
+  if (pop && document.activeElement === pop) return true;
   const panel = document.getElementById("panel-params");
   const el = document.activeElement;
   if (!panel || !el || !panel.contains(el)) return false;
@@ -2349,6 +2597,7 @@ function applyArtParamsFromIframe(patch) {
   const changed = {};
 
   for (const name of Object.keys(patch)) {
+    if (paramStringPopHoldsDraft(name)) continue;
     const spec = schemaByName.get(name);
     if (!spec) continue;
     let next = coerceFn(spec, patch[name]);
@@ -2362,6 +2611,8 @@ function applyArtParamsFromIframe(patch) {
   }
 
   if (!Object.keys(changed).length) return;
+  if (!artSentSinceBuild) artSentSinceBuild = {};
+  Object.assign(artSentSinceBuild, changed);
 
   if (!isParamRangeDragging() && !isParamTextEditing()) updateParamsUI();
   if (window.advParamDriverHost) {
@@ -2381,23 +2632,32 @@ function syncArtParamsToServer(patch) {
     artParamsPostPending = null;
     artParamsPostTimer = null;
     if (!batch || !Object.keys(batch).length) return;
-    const keys = Object.keys(batch);
+    const sent = { ...batch };
     fetch('/params', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ values: batch, persist: false, broadcast: false }),
+      body: JSON.stringify({ values: batch, persist: true, broadcast: false }),
     })
       .then((r) => r.json())
       .then((j) => {
         if (!j.ok || !j.values) return;
-        for (const k of keys) {
-          if (Object.prototype.hasOwnProperty.call(j.values, k)) {
-            state.paramValues[k] = j.values[k];
-          }
-        }
+        mergeParamResponse(sent, j.values);
       })
       .catch(() => {});
   }, 0);
+}
+
+/** Put the newest art strokes back into state and return the map a rebuild must store. */
+function consumeArtParamsForRebuild() {
+  clearTimeout(artParamsPostTimer);
+  artParamsPostTimer = null;
+  const overlay = Object.assign({}, artParamsPostPending || {}, artSentSinceBuild || {});
+  artParamsPostPending = null;
+  if (!state.paramValues || typeof state.paramValues !== "object") state.paramValues = {};
+  for (const k of Object.keys(overlay)) {
+    if (!paramValuesEqual(state.paramValues[k], overlay[k])) state.paramValues[k] = overlay[k];
+  }
+  return effectiveParamValuesForArt();
 }
 
 function paramSliderBlock(n, low, high, step, num, isInt) {
@@ -2618,6 +2878,291 @@ function renderParamColorRow(p, rawVal, titleAttr, nameCell) {
   );
 }
 
+function renderParamStringField(name, s) {
+  const n = escapeHtml(name);
+  const text = s === null || s === undefined ? "" : String(s);
+  if (text.length <= 36 && text.indexOf("\n") < 0) {
+    return (
+      '<input type="text" class="param-str" data-n="' +
+      n +
+      '" value="' +
+      escapeHtml(text) +
+      '"/>'
+    );
+  }
+  const shown = escapeHtml(text);
+  return (
+    '<button type="button" class="param-str-long" data-n="' +
+    n +
+    '"><span class="param-str-head">' +
+    shown +
+    '</span><span class="param-str-tail"><span>' +
+    shown +
+    "</span></span></button>"
+  );
+}
+
+let paramStrPopTimer = null;
+let paramStrPopPinned = false;
+let paramStrPopPos = null;
+let paramStrPopDrag = null;
+let paramStrPopCopyTimer = null;
+
+function paramStringPopInput() {
+  const root = document.getElementById("param-str-pop");
+  if (!root || root.hidden) return null;
+  return root.querySelector("#param-str-pop-input");
+}
+
+function paramStringPopFocused() {
+  const input = document.getElementById("param-str-pop-input");
+  return !!(input && document.activeElement === input);
+}
+
+/** The open editor owns this name while its field is focused. */
+function paramStringPopHoldsDraft(name) {
+  const input = paramStringPopInput();
+  return !!(input && input.dataset.n === name && paramStringPopFocused());
+}
+
+function keepParamStringPopDraft() {
+  const input = paramStringPopInput();
+  if (!input || !paramStringPopFocused() || !input.dataset.n) return;
+  if (!state.paramValues || typeof state.paramValues !== "object") state.paramValues = {};
+  state.paramValues[input.dataset.n] = input.value;
+}
+
+function paintParamStringRow(name, value) {
+  const panel = document.getElementById("panel-params");
+  if (!panel || !name) return;
+  const btn = panel.querySelector('.param-str-long[data-n="' + CSS.escape(name) + '"]');
+  if (!btn) return;
+  const head = btn.querySelector(".param-str-head");
+  const tail = btn.querySelector(".param-str-tail > span");
+  if (head) head.textContent = value;
+  if (tail) tail.textContent = value;
+  fitParamStringPreviews(panel);
+}
+
+function syncParamStringPopFromState() {
+  const input = paramStringPopInput();
+  if (!input || !input.dataset.n || paramStringPopFocused()) return;
+  const stored = state.paramValues && state.paramValues[input.dataset.n];
+  const next = stored == null ? "" : String(stored);
+  if (input.value === next) return;
+  const atEnd = input.scrollTop + input.clientHeight >= input.scrollHeight - 4;
+  const top = input.scrollTop;
+  input.value = next;
+  input.scrollTop = atEnd ? input.scrollHeight : top;
+}
+
+function placeParamStringPop(left, top) {
+  const root = document.getElementById("param-str-pop");
+  const sheet = root && root.querySelector(".param-str-pop-sheet");
+  if (!sheet) return;
+  const w = sheet.offsetWidth || 360;
+  const h = sheet.offsetHeight || 240;
+  left = Math.max(8, Math.min(left, window.innerWidth - w - 8));
+  top = Math.max(8, Math.min(top, window.innerHeight - Math.min(h, 48) - 8));
+  sheet.style.left = left + "px";
+  sheet.style.top = top + "px";
+  paramStrPopPos = { left, top };
+}
+
+function applyParamStringPopPin() {
+  const root = document.getElementById("param-str-pop");
+  const pin = document.getElementById("param-str-pop-pin");
+  if (!root) return;
+  root.classList.toggle("is-pinned", paramStrPopPinned);
+  if (pin) {
+    pin.setAttribute("aria-pressed", paramStrPopPinned ? "true" : "false");
+    pin.title = paramStrPopPinned ? "Unpin" : "Pin open";
+    pin.setAttribute("aria-label", pin.title);
+  }
+}
+
+function ensureParamStringPop() {
+  let root = document.getElementById("param-str-pop");
+  if (root) return root;
+  root = document.createElement("div");
+  root.id = "param-str-pop";
+  root.className = "param-str-pop";
+  root.hidden = true;
+  root.innerHTML =
+    '<div class="param-str-pop-backdrop"></div>' +
+    '<div class="param-str-pop-sheet" role="dialog" aria-labelledby="param-str-pop-name">' +
+    '<div class="param-str-pop-title">' +
+    '<span class="param-str-pop-name" id="param-str-pop-name"></span>' +
+    '<button type="button" class="param-str-pop-act" id="param-str-pop-copy" title="Copy" aria-label="Copy">' +
+    '<svg viewBox="0 0 16 16" aria-hidden="true"><rect x="5.2" y="2.4" width="7.4" height="8.8" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/>' +
+    '<path fill="none" stroke="currentColor" stroke-width="1.3" d="M4.4 4.6H3.4a1 1 0 0 0-1 1v7.2a1 1 0 0 0 1 1h6.4"/></svg></button>' +
+    '<button type="button" class="param-str-pop-act" id="param-str-pop-pin" title="Pin open" aria-label="Pin open" aria-pressed="false">' +
+    '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="4.2" r="2.2" fill="none" stroke="currentColor" stroke-width="1.4"/>' +
+    '<path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" d="M5.6 6.3h4.8M8 6.4v7.2"/></svg></button>' +
+    "</div>" +
+    '<textarea class="param-str-pop-input thin-scroll" id="param-str-pop-input" spellcheck="false"></textarea>' +
+    "</div>";
+  document.body.appendChild(root);
+  initThinScrollbars();
+  const input = root.querySelector("#param-str-pop-input");
+  const title = root.querySelector(".param-str-pop-title");
+  const copyBtn = root.querySelector("#param-str-pop-copy");
+  const pinBtn = root.querySelector("#param-str-pop-pin");
+  root.querySelector(".param-str-pop-backdrop").addEventListener("mousedown", (e) => {
+    if (paramStrPopPinned) return;
+    e.preventDefault();
+    closeParamStringPop(true);
+  });
+  title.addEventListener("mousedown", (e) => {
+    if (e.button !== 0 || (e.target.closest && e.target.closest("button"))) return;
+    e.preventDefault();
+    const sheet = root.querySelector(".param-str-pop-sheet");
+    const rect = sheet.getBoundingClientRect();
+    paramStrPopDrag = { dx: e.clientX - rect.left, dy: e.clientY - rect.top };
+    title.classList.add("is-dragging");
+  });
+  window.addEventListener("mousemove", (e) => {
+    if (!paramStrPopDrag) return;
+    placeParamStringPop(e.clientX - paramStrPopDrag.dx, e.clientY - paramStrPopDrag.dy);
+  });
+  window.addEventListener("mouseup", () => {
+    if (!paramStrPopDrag) return;
+    paramStrPopDrag = null;
+    title.classList.remove("is-dragging");
+  });
+  copyBtn.addEventListener("mousedown", (e) => e.preventDefault());
+  pinBtn.addEventListener("mousedown", (e) => e.preventDefault());
+  copyBtn.addEventListener("click", () => {
+    const text = input.value;
+    const done = () => {
+      copyBtn.classList.add("is-copied");
+      copyBtn.title = "Copied";
+      clearTimeout(paramStrPopCopyTimer);
+      paramStrPopCopyTimer = setTimeout(() => {
+        copyBtn.classList.remove("is-copied");
+        copyBtn.title = "Copy";
+      }, 900);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done).catch(() => {
+        input.focus();
+        input.select();
+        try {
+          document.execCommand("copy");
+        } catch (_) {}
+        done();
+      });
+    } else {
+      input.focus();
+      input.select();
+      try {
+        document.execCommand("copy");
+      } catch (_) {}
+      done();
+    }
+  });
+  pinBtn.addEventListener("click", () => {
+    paramStrPopPinned = !paramStrPopPinned;
+    applyParamStringPopPin();
+    if (paramStrPopPinned) {
+      const sheet = root.querySelector(".param-str-pop-sheet");
+      const rect = sheet.getBoundingClientRect();
+      paramStrPopPos = { left: rect.left, top: rect.top };
+    }
+  });
+  input.addEventListener("input", () => {
+    const name = input.dataset.n;
+    if (!name) return;
+    if (!state.paramValues || typeof state.paramValues !== "object") state.paramValues = {};
+    state.paramValues[name] = input.value;
+    if (!artSentSinceBuild) artSentSinceBuild = {};
+    artSentSinceBuild[name] = input.value;
+    paintParamStringRow(name, input.value);
+    clearTimeout(paramStrPopTimer);
+    paramStrPopTimer = setTimeout(() => {
+      postParamPatch({ [name]: input.value }, undefined, false);
+    }, 100);
+  });
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      closeParamStringPop(true);
+    }
+  });
+  return root;
+}
+
+function openParamStringPop(name, value, anchor) {
+  const root = ensureParamStringPop();
+  const input = root.querySelector("#param-str-pop-input");
+  const nameEl = root.querySelector(".param-str-pop-name");
+  const sheet = root.querySelector(".param-str-pop-sheet");
+  const next = value == null ? "" : String(value);
+  const sameOpen = !root.hidden && input.dataset.n === name && input.value === next;
+  input.dataset.n = name;
+  if (!sameOpen) input.value = next;
+  nameEl.textContent = name;
+  root.hidden = false;
+  applyParamStringPopPin();
+  if (!(paramStrPopPinned && paramStrPopPos)) {
+    const rect = anchor.getBoundingClientRect();
+    const width = Math.min(560, Math.max(rect.width, 360), window.innerWidth - 16);
+    sheet.style.width = width + "px";
+    let left = rect.left;
+    if (left + width > window.innerWidth - 8) left = Math.max(8, window.innerWidth - width - 8);
+    let top = rect.bottom + 4;
+    if (top + 240 > window.innerHeight - 8) top = Math.max(8, rect.top - 248);
+    placeParamStringPop(left, top);
+  } else {
+    placeParamStringPop(paramStrPopPos.left, paramStrPopPos.top);
+  }
+  if (!sameOpen) {
+    input.focus();
+    const end = input.value.length;
+    try {
+      input.setSelectionRange(end, end);
+    } catch (_) {}
+  } else {
+    input.focus();
+  }
+}
+
+function closeParamStringPop(commit) {
+  const root = document.getElementById("param-str-pop");
+  if (!root || root.hidden) return;
+  const input = root.querySelector("#param-str-pop-input");
+  const name = input && input.dataset.n;
+  clearTimeout(paramStrPopTimer);
+  paramStrPopTimer = null;
+  if (commit && name) {
+    if (!state.paramValues || typeof state.paramValues !== "object") state.paramValues = {};
+    state.paramValues[name] = input.value;
+    if (!artSentSinceBuild) artSentSinceBuild = {};
+    artSentSinceBuild[name] = input.value;
+    postParamPatch({ [name]: input.value }, undefined, true);
+  }
+  root.hidden = true;
+}
+
+function fitParamStringPreviews(panel) {
+  if (!panel) return;
+  panel.querySelectorAll(".param-str-long").forEach((btn) => {
+    const head = btn.querySelector(".param-str-head");
+    const tail = btn.querySelector(".param-str-tail");
+    if (!head || !tail) return;
+    const fits =
+      head.scrollWidth <= head.clientWidth + 1 && tail.scrollWidth <= tail.clientWidth + 1;
+    btn.classList.toggle("param-str-fits", fits);
+  });
+}
+
+window.addEventListener("resize", () => {
+  fitParamStringPreviews(document.getElementById("panel-params"));
+  if (paramStrPopPos && !document.getElementById("param-str-pop")?.hidden) {
+    placeParamStringPop(paramStrPopPos.left, paramStrPopPos.top);
+  }
+});
+
 function renderParamControl(p, rawVal) {
   let val = rawVal;
   if (val === undefined && 'default' in p) val = p.default;
@@ -2672,17 +3217,13 @@ function renderParamControl(p, rawVal) {
     }
     case 'PARAM-STRING': {
       const s = val === null || val === undefined ? '' : String(val);
-      const n = escapeHtml(p.name);
       return (
         '<div class="param-row"' +
         titleAttr +
         '>' +
         nameCell +
-        '<input type="text" class="param-str" data-n="' +
-        n +
-        '" value="' +
-        escapeHtml(s) +
-        '"/></div>'
+        renderParamStringField(p.name, s) +
+        '</div>'
       );
     }
     case 'PARAM-NUMBER': {
@@ -3008,6 +3549,13 @@ function bindParamPanel(panel) {
       if (n) fireParamButton(n);
       return;
     }
+    const longBtn = t.closest && t.closest('.param-str-long');
+    if (longBtn) {
+      const n = longBtn.getAttribute('data-n');
+      const head = longBtn.querySelector('.param-str-head');
+      if (n && head) openParamStringPop(n, head.textContent, longBtn);
+      return;
+    }
     if (t.classList && t.classList.contains('param-color-swatch')) {
       const n = t.getAttribute('data-n');
       const schema = state.paramSchema || [];
@@ -3155,6 +3703,8 @@ function updateParamsUI() {
   }
   panel.innerHTML = html;
   bindParamPanel(panel);
+  fitParamStringPreviews(panel);
+  syncParamStringPopFromState();
   restoreParamPanelFocus(panel, focusSnap);
   if (
     window.advParamDriverHost &&
@@ -3905,10 +4455,9 @@ function initVisMessageBridge() {
         return;
       }
     }
-    if (fromVis && d.type === 'advBuilder:requestParams') {
-      if (window.advParamDriverHost) window.advParamDriverHost.resetIframeParamLast();
-      iframeParamPostSig = '';
-      syncEffectiveParamsToArtIframe();
+    if (fromVis && (d.type === 'advBuilder:requestParams' || d.type === 'advBuilder:paramInit')) {
+      if (d.type === 'advBuilder:paramInit') adoptArtParamDefaults(d.defaults);
+      replyAllParamsToArt();
       return;
     }
     if (ev.origin !== location.origin) return;
@@ -4067,7 +4616,11 @@ function getCollectionPieceVisQuery(mode) {
   return '';
 }
 
-function refreshVisualiser() {
+async function refreshVisualiser() {
+  iframeParamSnapshot = effectiveParamValuesForArt();
+  try {
+    if (window.advCapture?.flush) await window.advCapture.flush();
+  } catch (_) {}
   if (window.advVisView?.cancelPeek) window.advVisView.cancelPeek();
   const mode = document.querySelector('input[name="mode"]:checked').value;
   const iframe = document.getElementById('vis');
@@ -4083,6 +4636,7 @@ function refreshVisualiser() {
       syncEffectiveParamsToArtIframe();
       applyViewportBgToPreview();
       if (window.VisConsole?.syncArtCaptureToPreview) window.VisConsole.syncArtCaptureToPreview();
+      if (window.advCapture?.onPreviewLoad) window.advCapture.onPreviewLoad();
       requestAnimationFrame(() => {
         if (window.advVisView?.focusNavSentinel) window.advVisView.focusNavSentinel();
       });
@@ -4216,11 +4770,25 @@ function propertiesLevelEnabled(level) {
 }
 
 function postPropertyLevels(body) {
+  const payload = Object.assign({}, body || {}, {
+    paramValues: consumeArtParamsForRebuild(),
+  });
   return fetch('/propertyLevels', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    body: JSON.stringify(payload),
   }).then((r) => r.json());
+}
+
+function postUpdateProps(body) {
+  const payload = Object.assign({}, body || {}, {
+    paramValues: consumeArtParamsForRebuild(),
+  });
+  return fetch('/updateProps', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
 }
 
 let propertyEditChain = Promise.resolve();
@@ -4845,10 +5413,13 @@ function renderValueAutoPanel(panel, schema, keys) {
 }
 
 function postBuildValues(payload) {
+  const body = Object.assign({}, payload || {}, {
+    paramValues: consumeArtParamsForRebuild(),
+  });
   return fetch('/buildValues', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(body),
   }).then((r) => r.json());
 }
 
@@ -5751,11 +6322,7 @@ function handleClick(prop, val) {
     }
   }
 
-  fetch('/updateProps', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ current: cur, locks, levelPatch }),
-  }).then(() => {
+  postUpdateProps({ current: cur, locks, levelPatch }).then(() => {
     state.props.current = cur;
     state.props.locks = locks;
     if (levelPatch) {
@@ -5821,11 +6388,7 @@ function applyPropValue(prop, newVal) {
     return;
   }
   cur[prop] = newVal;
-  fetch('/updateProps', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ current: cur, locks, levelPatch }),
-  })
+  postUpdateProps({ current: cur, locks, levelPatch })
     .then(() => {
       state.props.current = cur;
       if (PROPERTY_LEVELS.includes(activeLevel)) {
@@ -5893,11 +6456,7 @@ function applyPropValuesBatch(levelPatch) {
       cur[prop] = entry.value;
     }
   }
-  fetch('/updateProps', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ current: cur, locks, levelPatch }),
-  })
+  postUpdateProps({ current: cur, locks, levelPatch })
     .then(() => {
       state.props.current = cur;
       if (PROPERTY_LEVELS.includes(activeLevel)) {
@@ -5994,7 +6553,11 @@ function randomize() {
     return;
   }
   showRebuilding();
-  fetch('/random', {method:'POST'}).then(() => {});
+  fetch('/random', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ paramValues: consumeArtParamsForRebuild() }),
+  }).then(() => {});
 }
 
 function newSeed() {
@@ -6137,6 +6700,7 @@ function connectWebSocket() {
       const next = msg.values || {};
       const prev = state.paramValues || {};
       state.paramValues = next;
+      keepParamStringPopDraft();
       if (!isParamRangeDragging() && !isParamTextEditing()) updateParamsUI();
       const delta = paramDeltaWs(prev, next);
       if (window.advParamDriverHost) {
@@ -6146,7 +6710,26 @@ function connectWebSocket() {
       return;
     }
     if (msg.type === "update") {
+      const sent = artSentSinceBuild;
+      const pendingPost = artParamsPostPending ? { ...artParamsPostPending } : null;
+      artSentSinceBuild = null;
       applyBuilderState(msg.data);
+      const keep = {};
+      const overlay = Object.assign({}, sent || {}, pendingPost || {});
+      if (!state.paramValues || typeof state.paramValues !== "object") state.paramValues = {};
+      for (const k of Object.keys(overlay)) {
+        if (!paramValuesEqual(state.paramValues[k], overlay[k])) {
+          state.paramValues[k] = overlay[k];
+          keep[k] = overlay[k];
+        }
+      }
+      if (Object.keys(keep).length) {
+        fetch("/params", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ values: keep, persist: true, broadcast: false }),
+        }).catch(() => {});
+      }
       stateReady = true;
       flushArtParamQueue();
       updatePropsUI();
@@ -6322,6 +6905,7 @@ fetch('/state').then(r => r.json()).then(s => {
     syncEffectiveParamsToArtIframe();
     applyViewportBgToPreview();
     if (window.VisConsole?.syncArtCaptureToPreview) window.VisConsole.syncArtCaptureToPreview();
+    if (window.advCapture?.onPreviewLoad) window.advCapture.onPreviewLoad();
   };
   applyViewportBgToPreview();
   vis.src = '/visualise?mode=full';

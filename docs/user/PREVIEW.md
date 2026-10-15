@@ -18,6 +18,10 @@ On Full and Min: **pan/zoom** (or hold Ctrl and drag), **reset**, **fullscreen**
 
 The checker / solid **background** behind the canvas is only the workshop wall. It is not written into the art. `CanvasWall` in your setup *is* the art.
 
+## Recording
+
+On Full and Min, **Record** films the art canvas. It glows and shows a timer while it is running. Click it again to stop. **Camera** saves a PNG of the same canvas. Both files go in the project's `captures` folder, named with the project and the time. The name on the toolbar opens that file in Explorer. The picture is the canvas bitmap, not the workshop around it, and it is not written into the built HTML.
+
 ## Console
 
 The thin bar under the preview says **console**. Click it. Drag to make it taller.

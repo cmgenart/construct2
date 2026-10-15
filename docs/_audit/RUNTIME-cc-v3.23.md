@@ -50,7 +50,7 @@ Builder also interprets `//#` properties, `//PARAM-*`, `/*[values.*]*/`, `//impo
 | Name | Behaviour |
 |------|-----------|
 | `SendParams(map)` | `parent.postMessage` (typed messages ignored inbound) |
-| `OnParam(fn)` | `fn(key, value)` for each pair. If a bare map arrived first, last map is held in `cc_paramHold` and flushed here. |
+| `OnParam(fn)` | `fn(key, value)` for each pair. Bare maps are merged into `cc_paramHold` and replayed here; the snapshot is kept for a later assignment. |
 | `cc_onParam` | Same slot; assign directly if preferred |
 
 ## Canvas / frame
