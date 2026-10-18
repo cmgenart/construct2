@@ -15,6 +15,11 @@ contextBridge.exposeInMainWorld("advBuilder", {
 
   createProject: (payload) => ipcRenderer.invoke("adv:create-project", payload),
 
+  projectInitialName: (payload) =>
+    ipcRenderer.invoke("adv:project-initial-name", payload),
+
+  renameProject: (payload) => ipcRenderer.invoke("adv:rename-project", payload),
+
   previewLegacyImport: (payload) =>
     ipcRenderer.invoke("adv:preview-legacy-import", payload),
 

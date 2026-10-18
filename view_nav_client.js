@@ -57,9 +57,24 @@
     });
   }
 
+  function isTextField(el) {
+    if (!el || el === document.body) return false;
+    var tag = el.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
+    return !!el.isContentEditable;
+  }
+
   function onKeyDown(e) {
-    if (e.key !== "Control") return;
-    post("advBuilder:visNavCtrl", { down: true });
+    if (e.key === "Control") {
+      post("advBuilder:visNavCtrl", { down: true });
+      return;
+    }
+    if ((e.key === "r" || e.key === "R") && (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey) {
+      if (isTextField(e.target)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      post("advBuilder:captureToggle");
+    }
   }
 
   function onKeyUp(e) {
@@ -69,7 +84,7 @@
 
   window.__advViewNavPeek = true;
   window.addEventListener("contextmenu", onContextMenu);
-  window.addEventListener("keydown", onKeyDown);
+  window.addEventListener("keydown", onKeyDown, true);
   window.addEventListener("keyup", onKeyUp);
   window.addEventListener("pointerdown", onPointerDown);
   window.addEventListener("pointermove", onPointerMove);

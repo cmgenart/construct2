@@ -40,7 +40,7 @@ const { patchSendParamsTarget } = require("./param_sendparams_patch.js");
 const { patchViewportBgClient } = require("./viewport_bg_patch.js");
 const { patchViewNavClient } = require("./view_nav_patch.js");
 const { patchCaptureClient } = require("./capture_patch.js");
-const { writeCapture, captureExtForMime, resolveCaptureFile, CAPTURE_MAX_BYTES } = require("./capture_store.js");
+const { writeCapture, captureExtForMime, ensureCapturesDir, resolveCaptureFile, CAPTURE_MAX_BYTES } = require("./capture_store.js");
 const {
   getDefaultViewportBgSettings,
   normalizeViewportColor,
@@ -3850,6 +3850,20 @@ const server = http.createServer((req, res) => {
         }),
       );
     });
+  } else if (pathname === "/captures/folder") {
+    if (req.method !== "POST") {
+      res.writeHead(405, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: false, error: "Method not allowed" }));
+      return;
+    }
+    try {
+      const dir = ensureCapturesDir(projectPath);
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: true, path: dir }));
+    } catch (e) {
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: false, error: e.message || "Could not open captures" }));
+    }
   } else if (pathname === "/captures/reveal") {
     if (req.method !== "POST") {
       res.writeHead(405, { "Content-Type": "application/json" });
@@ -4340,6 +4354,31 @@ const server = http.createServer((req, res) => {
     }
 
     sendJson(404, { ok: false, error: "Not found" });
+  } else if (pathname === '/rebuild') {
+    if (req.method !== 'POST') {
+      res.writeHead(405);
+      res.end();
+      return;
+    }
+    let body = '';
+    req.on('data', (d) => (body += d));
+    req.on('end', () => {
+      let payload = {};
+      try {
+        payload = JSON.parse(body || '{}');
+      } catch (_) {
+        payload = {};
+      }
+      if (isCollectionMode()) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, skipped: 'collection' }));
+        return;
+      }
+      applyIncomingParamValues(payload.paramValues);
+      performBuild();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true }));
+    });
   } else if (pathname === '/updateSeed') {
     let body = '';
     req.on('data', d => body += d);

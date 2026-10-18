@@ -42,6 +42,12 @@ function captureFilename(projectName, ext, date) {
   return captureProjectSlug(projectName) + "-" + captureStamp(date) + "." + safeExt;
 }
 
+function ensureCapturesDir(projectPath) {
+  const dir = path.resolve(projectPath, "captures");
+  fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
 function resolveCaptureFile(projectPath, name) {
   const base = path.basename(String(name || "").replace(/\\/g, "/"));
   if (!base || !/^[A-Za-z0-9._-]+$/.test(base)) return null;
@@ -106,6 +112,7 @@ module.exports = {
   captureStamp,
   captureProjectSlug,
   captureFilename,
+  ensureCapturesDir,
   resolveCaptureFile,
   writeCapture,
 };

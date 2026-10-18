@@ -631,6 +631,52 @@ function getWritableRoot(workspace, rootId) {
   return root;
 }
 
+function sameProjectPath(a, b) {
+  const left = path.resolve(String(a || ""));
+  const right = path.resolve(String(b || ""));
+  if (process.platform === "win32") return left.toLowerCase() === right.toLowerCase();
+  return left === right;
+}
+
+/**
+ * Point pins, recents, and the last selection at a renamed project folder.
+ * @param {object} workspace
+ * @param {string} oldPath
+ * @param {string} newPath
+ * @param {string} newName folder name
+ */
+function retargetProjectPath(workspace, oldPath, newPath, newName) {
+  const nextPath = path.resolve(newPath);
+  const nextName = String(newName || path.basename(nextPath));
+  const hit = (entry) => entry && entry.path && sameProjectPath(entry.path, oldPath);
+  const rewrite = (entry) => ({ ...entry, path: nextPath, name: nextName });
+  if (hit(workspace.lastSelected)) {
+    workspace.lastSelected = rewrite(workspace.lastSelected);
+  }
+  if (Array.isArray(workspace.recentProjects)) {
+    workspace.recentProjects = workspace.recentProjects.map((entry) =>
+      hit(entry) ? rewrite(entry) : entry,
+    );
+  }
+  const pins = workspace.pinnedProjects;
+  if (pins && typeof pins === "object") {
+    for (const rootId of Object.keys(pins)) {
+      if (!Array.isArray(pins[rootId])) continue;
+      pins[rootId] = pins[rootId].map((entry) => (hit(entry) ? rewrite(entry) : entry));
+    }
+  }
+  const conversions = workspace.legacyConversions;
+  if (conversions && typeof conversions === "object") {
+    for (const key of Object.keys(conversions)) {
+      const entry = conversions[key];
+      if (entry && entry.path && sameProjectPath(entry.path, oldPath)) {
+        conversions[key] = { ...entry, path: nextPath };
+      }
+    }
+  }
+  return workspace;
+}
+
 module.exports = {
   WORKSPACE_FILENAME,
   MAX_RECENT,
@@ -661,5 +707,7 @@ module.exports = {
   addWorkspaceRoot,
   importProjectFolderToRoot,
   duplicateProjectToWritableRoot,
+  retargetProjectPath,
+  sameProjectPath,
   slugifyProjectName,
 };

@@ -33,6 +33,8 @@ const {
   addWorkspaceRoot,
   importProjectFolderToRoot,
   duplicateProjectToWritableRoot,
+  retargetProjectPath,
+  sameProjectPath,
   setLastSelected,
 } = require("../workspace.js");
 const {
@@ -43,6 +45,7 @@ const {
   isLegacyProjectDir,
 } = require("../project_discovery.js");
 const { loadTemplateManifest, scaffoldProject } = require("../project_scaffold.js");
+const { readInitialProjectName, renameUserProject } = require("../project_rename.js");
 const {
   previewLegacyImport,
   importLegacyProject,
@@ -490,6 +493,8 @@ function buildContextMenuTemplate(payload, finish) {
     }
     if (readOnlyRoot) {
       items.push(wrap("duplicate", "Duplicate to my projects"));
+    } else if (!isLegacy) {
+      items.push(wrap("rename-project", "Rename"));
     }
     items.push(
       { type: "separator" },
@@ -802,7 +807,20 @@ function installApplicationMenu() {
       submenu: [{ role: "quit" }],
     },
     { role: "editMenu" },
-    { role: "viewMenu" },
+    {
+      label: "View",
+      submenu: [
+        { role: "reload", accelerator: "", registerAccelerator: false },
+        { role: "forceReload" },
+        { role: "toggleDevTools" },
+        { type: "separator" },
+        { role: "resetZoom" },
+        { role: "zoomIn" },
+        { role: "zoomOut" },
+        { type: "separator" },
+        { role: "togglefullscreen" },
+      ],
+    },
     {
       label: "Help",
       submenu: [
@@ -929,6 +947,53 @@ function registerIpc() {
   ipcMain.handle("adv:list-templates", () => {
     try {
       return { ok: true, manifest: loadTemplateManifest() };
+    } catch (e) {
+      return { ok: false, error: String(e.message || e) };
+    }
+  });
+
+  ipcMain.handle("adv:project-initial-name", (_evt, payload) => {
+    try {
+      const check = validateProjectPath(payload?.path);
+      if (!check.ok) return check;
+      if (check.root?.readOnly) {
+        return { ok: false, error: "Project is in a read-only root" };
+      }
+      return readInitialProjectName(check.path);
+    } catch (e) {
+      return { ok: false, error: String(e.message || e) };
+    }
+  });
+
+  ipcMain.handle("adv:rename-project", async (_evt, payload) => {
+    try {
+      const check = validateProjectPath(payload?.path);
+      if (!check.ok) return check;
+      if (check.root?.readOnly) {
+        return { ok: false, error: "Project is in a read-only root" };
+      }
+      const wasOpen =
+        selectedProject && sameProjectPath(selectedProject.path, check.path);
+      if (wasOpen) await stopBuilderServer();
+      let result = { ok: false, error: "Could not rename the project folder" };
+      for (let attempt = 0; attempt < 6; attempt++) {
+        result = renameUserProject(check.path, payload?.name);
+        if (result.ok) break;
+        if (!/EPERM|EBUSY|EACCES|being used/i.test(String(result.error || ""))) break;
+        await new Promise((resolve) => setTimeout(resolve, 150));
+      }
+      if (!result.ok) return result;
+      const ws = getWorkspace();
+      retargetProjectPath(ws, check.path, result.path, result.name);
+      if (wasOpen) {
+        selectedProject = {
+          name: result.name,
+          path: result.path,
+          rootId: check.root?.id || selectedProject?.rootId || null,
+        };
+      }
+      persistWorkspace(ws);
+      return { ok: true, ...result, rootId: check.root?.id || null, wasOpen: !!wasOpen };
     } catch (e) {
       return { ok: false, error: String(e.message || e) };
     }

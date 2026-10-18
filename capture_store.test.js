@@ -6,6 +6,7 @@ const {
   captureExtForMime,
   captureFilename,
   captureStamp,
+  ensureCapturesDir,
   resolveCaptureFile,
   writeCapture,
 } = require("./capture_store.js");
@@ -43,5 +44,9 @@ assert.strictEqual(bad.status, 400);
 assert.strictEqual(resolveCaptureFile(dir, a.name), path.join(dir, "captures", a.name));
 assert.strictEqual(resolveCaptureFile(dir, "../dev.json"), null);
 assert.strictEqual(resolveCaptureFile(dir, "missing.mp4"), null);
+
+const empty = fs.mkdtempSync(path.join(os.tmpdir(), "c2-cap-empty-"));
+assert.strictEqual(ensureCapturesDir(empty), path.join(empty, "captures"));
+assert.strictEqual(fs.statSync(path.join(empty, "captures")).isDirectory(), true);
 
 console.log("capture_store.test.js: ok");

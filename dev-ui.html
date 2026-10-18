@@ -69,9 +69,28 @@
     flex:1 1 auto; min-width:0; margin:0;
     font-size:14px; font-weight:700; line-height:1.2;
     text-align:center;
-    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    overflow:hidden;
     color:var(--text);
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    border:0; background:transparent; padding:2px 8px; border-radius:6px;
+    font-family:inherit; cursor:pointer;
   }
+  .topbar-project-title:hover,
+  .topbar-project-title:focus-visible {
+    background:color-mix(in srgb, var(--text) 14%, transparent);
+  }
+  .project-title-name {
+    min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .project-title-rebuild {
+    display:none; align-items:center; gap:4px; flex-shrink:0;
+    font-size:11px; font-weight:600; letter-spacing:0.02em;
+  }
+  .topbar-project-title:hover .project-title-rebuild,
+  .topbar-project-title:focus-visible .project-title-rebuild {
+    display:inline-flex;
+  }
+  .project-title-rebuild svg { display:block; width:13px; height:13px; }
   #topbar.has-embed-chrome .topbar-project-title { align-self:center; }
   .topbar-row h4 { margin:0; flex-shrink:0; }
   #runtime-select.runtime-select,
@@ -272,6 +291,16 @@
   .vis-capture-file.is-error:hover .vis-capture-file-name,
   .vis-capture-file.is-error:focus-visible .vis-capture-file-name { opacity:1; }
   .vis-capture-file.is-error .vis-capture-file-icon { display:none !important; }
+  .vis-capture-ctx-menu {
+    position:fixed; z-index:10000; min-width:180px;
+    background:var(--surface); border:1px solid var(--border-strong); border-radius:4px;
+    box-shadow:0 4px 12px rgba(0,0,0,0.15); padding:2px 0;
+  }
+  .vis-capture-ctx-menu button {
+    display:block; width:100%; text-align:left; border:none; background:transparent;
+    color:var(--text); font-size:11px; font-family:inherit; padding:5px 10px; cursor:pointer;
+  }
+  .vis-capture-ctx-menu button:hover { background:var(--row-highlight); }
   #vis-capture-record { color:#7a1616; }
   #vis-capture-record .vis-nav-icon { width:18px; height:18px; }
   #vis-capture-record.is-recording { color:#ff2a2a; }
@@ -1822,7 +1851,10 @@
         <button type="button" id="btn-close-embed" class="embed-chrome-close" hidden title="Close dev UI">Close</button>
         <button type="button" id="btn-open-project-folder" class="embed-chrome-folder" hidden title="Open project folder" aria-label="Open project folder">📁</button>
         <button type="button" id="btn-duplicate-embed" class="embed-chrome-duplicate" hidden title="Copy to your projects and open">Duplicate</button>
-        <h1 id="project-title" class="topbar-project-title" aria-live="polite">…</h1>
+        <button type="button" id="project-title" class="topbar-project-title" title="Rebuild this project">
+          <span class="project-title-name" aria-live="polite">…</span>
+          <span class="project-title-rebuild">rebuild<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M13.2 8a5.2 5.2 0 1 1-1.5-3.6"/><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M13.4 2.2V5.6H10"/></svg></span>
+        </button>
         <div id="status-bar">
           <button type="button" id="btn-xai-key" hidden title="xAI API key (Electron app storage)">xai</button>
         </div>
@@ -1964,7 +1996,7 @@
         </div>
         <div class="vis-capture-wrap" id="vis-capture-wrap">
           <div class="vis-view-control-group" id="vis-capture-controls">
-            <button type="button" id="vis-capture-record" class="vis-view-control-btn" aria-pressed="false" title="Record" aria-label="Record">
+            <button type="button" id="vis-capture-record" class="vis-view-control-btn" aria-pressed="false" title="Record (ctrl+R)" aria-label="Record (ctrl+R)">
               <svg class="vis-nav-icon" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.2" fill="currentColor"/></svg>
             </button>
             <button type="button" id="vis-capture-shot" class="vis-view-control-btn" title="Save a PNG of the canvas" aria-label="Save a PNG of the canvas">
@@ -4076,6 +4108,8 @@ function initSectionHelp() {
 }
 
 function initRuntimeSelect() {
+  const titleBtn = document.getElementById('project-title');
+  if (titleBtn) titleBtn.addEventListener('click', forceRebuild);
   const PROJECT_CORE_ID = 'project-core';
   let runtimeSelectBusy = false;
   let runtimeListCache = null;
@@ -4137,7 +4171,7 @@ function initRuntimeSelect() {
       const data = await res.json();
       if (!data.ok) return;
       populateRuntimeSelect(sel, data);
-      const titleEl = document.getElementById('project-title');
+      const titleEl = document.querySelector('#project-title .project-title-name');
       if (titleEl && data.projectName) titleEl.textContent = data.projectName;
     } catch (_) {}
   }
@@ -6558,6 +6592,26 @@ function randomize() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ paramValues: consumeArtParamsForRebuild() }),
   }).then(() => {});
+}
+
+function forceRebuild() {
+  if (state.collectionOpen) {
+    if (
+      state.pieceOpen &&
+      state.propertiesActiveLevel === 'piece' &&
+      window.CollectionUI &&
+      typeof window.CollectionUI.rebuildSelectedPiece === 'function'
+    ) {
+      window.CollectionUI.rebuildSelectedPiece();
+    }
+    return;
+  }
+  showRebuilding('Rebuilding…');
+  fetch('/rebuild', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ paramValues: consumeArtParamsForRebuild() }),
+  }).catch(() => hideRebuilding());
 }
 
 function newSeed() {

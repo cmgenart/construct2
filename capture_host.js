@@ -111,7 +111,7 @@
     if (!rec) return;
     rec.classList.toggle("is-recording", recording);
     rec.setAttribute("aria-pressed", recording ? "true" : "false");
-    var label = recording ? "Stop recording" : "Record";
+    var label = recording ? "Stop recording (ctrl+R)" : "Record (ctrl+R)";
     rec.title = label;
     rec.setAttribute("aria-label", label);
   }
@@ -157,6 +157,65 @@
     else start();
   }
 
+  var captureMenu = null;
+
+  function hideCaptureMenu() {
+    if (!captureMenu) return;
+    captureMenu.remove();
+    captureMenu = null;
+  }
+
+  function revealPath(filePath, mode) {
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage(
+        { type: "advBuilder:revealPath", path: filePath, mode: mode },
+        "*",
+      );
+      return;
+    }
+    if (window.advBuilder && typeof window.advBuilder.revealInExplorer === "function") {
+      window.advBuilder.revealInExplorer({ path: filePath, mode: mode });
+    }
+  }
+
+  function openCapturesFolder() {
+    fetch("/captures/folder", { method: "POST" })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j || !j.ok || !j.path) return;
+        revealPath(j.path, "folder");
+      })
+      .catch(function () {});
+  }
+
+  function showCaptureMenu(x, y) {
+    hideCaptureMenu();
+    var menu = document.createElement("div");
+    menu.className = "vis-capture-ctx-menu";
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = "Open captures in Explorer";
+    btn.addEventListener("click", function () {
+      hideCaptureMenu();
+      openCapturesFolder();
+    });
+    menu.appendChild(btn);
+    menu.style.left = x + "px";
+    menu.style.top = y + "px";
+    document.body.appendChild(menu);
+    captureMenu = menu;
+    requestAnimationFrame(function () {
+      var r = menu.getBoundingClientRect();
+      if (r.right > window.innerWidth) menu.style.left = Math.max(0, x - r.width) + "px";
+      if (r.bottom > window.innerHeight) menu.style.top = Math.max(0, y - r.height) + "px";
+    });
+  }
+
+  function onCaptureContext(ev) {
+    ev.preventDefault();
+    showCaptureMenu(ev.clientX, ev.clientY);
+  }
+
   function revealSaved() {
     var file = els().file;
     if (!file || file.disabled || !file.dataset.name) return;
@@ -168,16 +227,7 @@
       .then(function (r) { return r.json(); })
       .then(function (j) {
         if (!j || !j.ok || !j.path) return;
-        if (window.parent && window.parent !== window) {
-          window.parent.postMessage(
-            { type: "advBuilder:revealPath", path: j.path, mode: "select" },
-            "*",
-          );
-          return;
-        }
-        if (window.advBuilder && typeof window.advBuilder.revealInExplorer === "function") {
-          window.advBuilder.revealInExplorer({ path: j.path, mode: "select" });
-        }
+        revealPath(j.path, "select");
       })
       .catch(function () {});
   }
@@ -240,16 +290,44 @@
     else if (shotPending && !building()) shot();
   }
 
+  function isTextField(el) {
+    if (!el || el === document.body) return false;
+    var tag = el.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
+    return !!el.isContentEditable;
+  }
+
+  function onRecordKey(e) {
+    if (e.key !== "r" && e.key !== "R") return;
+    if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey) return;
+    if (isTextField(e.target)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    toggleRecord();
+  }
+
   function init() {
     var e = els();
     if (!e.record || e.record.dataset.bound) return;
     e.record.dataset.bound = "1";
     e.record.addEventListener("click", toggleRecord);
-    if (e.shot) e.shot.addEventListener("click", shot);
+    e.record.addEventListener("contextmenu", onCaptureContext);
+    document.addEventListener("keydown", onRecordKey, true);
+    if (e.shot) {
+      e.shot.addEventListener("click", shot);
+      e.shot.addEventListener("contextmenu", onCaptureContext);
+    }
+    document.addEventListener("click", function (ev) {
+      if (captureMenu && !captureMenu.contains(ev.target)) hideCaptureMenu();
+    });
+    document.addEventListener("keydown", function (ev) {
+      if (ev.key === "Escape") hideCaptureMenu();
+    });
     if (e.file) e.file.addEventListener("click", revealSaved);
     window.addEventListener("message", function (ev) {
       if (ev.origin !== location.origin) return;
       var data = ev.data || {};
+      if (data.type === "advBuilder:captureToggle") toggleRecord();
       if (data.type === "advBuilder:captureStatus") onStatus(data);
     });
     paint();

@@ -438,6 +438,17 @@
     </div>
   </dialog>
 
+  <dialog id="dlg-prompt">
+    <h3 id="dlg-prompt-title">Rename</h3>
+    <p id="dlg-prompt-message" class="dialog-message"></p>
+    <p id="dlg-prompt-detail" class="dialog-detail" hidden></p>
+    <input id="dlg-prompt-input" type="text" autocomplete="off" spellcheck="false" />
+    <div class="dialog-actions">
+      <button type="button" id="dlg-prompt-cancel">Cancel</button>
+      <button type="button" id="dlg-prompt-ok" class="primary">OK</button>
+    </div>
+  </dialog>
+
   <div id="doc-viewer-back" hidden aria-hidden="true">
     <div id="doc-viewer" role="dialog" aria-labelledby="doc-viewer-title">
       <div class="doc-viewer-head">
@@ -904,6 +915,47 @@
             case "duplicate": {
               await selectProject(ctx.project, ctx.rootId);
               await duplicateSelectedAndOpen(ctx.path);
+              break;
+            }
+            case "rename-project": {
+              const current = await api.projectInitialName({ path: ctx.path });
+              if (!current.ok) {
+                status.className = "status err";
+                status.textContent = current.error || "Could not read the project name";
+                break;
+              }
+              const prompted = await showAppPrompt({
+                title: "Rename project",
+                message: "New project name",
+                detail:
+                  "Renames the folder and the project name. Piece values are left as they are.",
+                value: current.displayName || ctx.project?.name || "",
+                okLabel: "Rename",
+              });
+              if (!prompted?.confirmed) break;
+              const wasOpen =
+                devIsOpen &&
+                currentSelection &&
+                pathsEqual(currentSelection.path, ctx.path);
+              status.textContent = "Renaming…";
+              const renamed = await api.renameProject({
+                path: ctx.path,
+                name: prompted.value,
+              });
+              if (!renamed.ok) {
+                status.className = "status err";
+                status.textContent = renamed.error || "Rename failed";
+                if (wasOpen) await openDevForCurrent();
+                break;
+              }
+              await refreshList();
+              await selectProject(
+                { name: renamed.name, path: renamed.path, kind: "construct2" },
+                ctx.rootId,
+                { openDev: wasOpen },
+              );
+              status.className = "status ok";
+              status.textContent = "Renamed to " + renamed.displayName;
               break;
             }
             case "open-explorer":
